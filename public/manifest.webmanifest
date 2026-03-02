@@ -1,0 +1,23 @@
+{
+    "name": "DocuGen - Generador de Facturas",
+    "short_name": "DocuGen",
+    "description": "Generador profesional de facturas y cuentas de cobro",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2563eb",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/1157/1157053.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/1157/1157053.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
