@@ -13,9 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getEnv = (name: string) => {
-  const p = (globalThis as any)['process'];
-  const val = p && p['env'] ? p['env'][name] : undefined;
-  return val;
+  return (process.env as any)[name];
 };
 
 // Global Error Logging
@@ -191,7 +189,16 @@ async function startServer() {
 
   // API routes
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
+  app.get("/api/ping", (req, res) => {
+    res.json({
+      pong: true,
+      env: getEnv('NODE_ENV') || 'not set',
+      port: PORT,
+      db: db ? 'connected' : 'null'
+    });
   });
 
   // Settings (Company Profiles) Endpoints
