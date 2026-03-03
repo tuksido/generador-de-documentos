@@ -15,90 +15,103 @@ const __dirname = path.dirname(__filename);
 const getEnv = (name: string) => {
   const p = (globalThis as any)['process'];
   const val = p && p['env'] ? p['env'][name] : undefined;
-  console.log(`[EnvCheck] ${name}: ${val ? 'SET' : 'MISSING'}`);
   return val;
 };
 
-const db = new Database("invoices.db");
-const JWT_SECRET = getEnv('JWT_SECRET') || "docugen-secret-key-2024";
-
-console.log('--- Server Start Diagnostics ---');
-console.log('NODE_ENV:', getEnv('NODE_ENV'));
-console.log('PORT:', getEnv('PORT'));
-console.log('__dirname:', __dirname);
-const distPath = path.resolve(__dirname, 'dist');
-console.log('Static files path:', distPath);
-console.log('Dist exists:', fs.existsSync(distPath));
-if (fs.existsSync(distPath)) {
-  console.log('Files in dist:', fs.readdirSync(distPath));
-}
-console.log('-------------------------------');
-
-// Initialize database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT,
-    reset_token TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS invoices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    type TEXT DEFAULT 'payment_account',
-    invoice_number TEXT,
-    date TEXT,
-    client_name TEXT,
-    total REAL,
-    data TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    is_default INTEGER DEFAULT 0,
-    logo TEXT,
-    signature TEXT,
-    provider_name TEXT,
-    provider_nit TEXT,
-    provider_address TEXT,
-    provider_phone TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    name TEXT,
-    nit TEXT,
-    address TEXT,
-    phone TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, name),
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`);
-
-// Migration: Add user_id to tables if it doesn't exist
-try { db.prepare("ALTER TABLE invoices ADD COLUMN user_id INTEGER").run(); } catch (e) { }
-try { db.prepare("ALTER TABLE settings ADD COLUMN user_id INTEGER").run(); } catch (e) { }
-try { db.prepare("ALTER TABLE clients ADD COLUMN user_id INTEGER").run(); } catch (e) { }
-try { db.prepare("ALTER TABLE users ADD COLUMN reset_token TEXT").run(); } catch (e) { }
-
-// Migration: Add is_default to settings if it doesn't exist
-try {
-  db.prepare("ALTER TABLE settings ADD COLUMN is_default INTEGER DEFAULT 0").run();
-} catch (e) {
-  // Column already exists or table doesn't exist yet
-}
+// Global Error Logging
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 async function startServer() {
-  const app = express();
   const PORT = Number(getEnv('PORT')) || 3000;
+  const JWT_SECRET = getEnv('JWT_SECRET') || "docugen-secret-key-2024";
+
+  console.log('--- Server Startup Context ---');
+  console.log('NODE_ENV:', getEnv('NODE_ENV'));
+  console.log('PORT:', PORT);
+  console.log('__dirname:', __dirname);
+
+  const distPath = path.resolve(__dirname, 'dist');
+  console.log('Static files path:', distPath);
+  console.log('Dist exists:', fs.existsSync(distPath));
+
+  let db: any;
+  try {
+    console.log('Connecting to database...');
+    db = new Database("invoices.db");
+    console.log('Database connected successfully.');
+  } catch (err) {
+    console.error('Failed to connect to database:', err);
+    process.exit(1);
+  }
+
+  // Initialize database
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE,
+      password TEXT,
+      reset_token TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      type TEXT DEFAULT 'payment_account',
+      invoice_number TEXT,
+      date TEXT,
+      client_name TEXT,
+      total REAL,
+      data TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      is_default INTEGER DEFAULT 0,
+      logo TEXT,
+      signature TEXT,
+      provider_name TEXT,
+      provider_nit TEXT,
+      provider_address TEXT,
+      provider_phone TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      name TEXT,
+      nit TEXT,
+      address TEXT,
+      phone TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, name),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
+  // Migration: Add user_id to tables if it doesn't exist
+  try { db.prepare("ALTER TABLE invoices ADD COLUMN user_id INTEGER").run(); } catch (e) { }
+  try { db.prepare("ALTER TABLE settings ADD COLUMN user_id INTEGER").run(); } catch (e) { }
+  try { db.prepare("ALTER TABLE clients ADD COLUMN user_id INTEGER").run(); } catch (e) { }
+  try { db.prepare("ALTER TABLE users ADD COLUMN reset_token TEXT").run(); } catch (e) { }
+
+  // Migration: Add is_default to settings if it doesn't exist
+  try {
+    db.prepare("ALTER TABLE settings ADD COLUMN is_default INTEGER DEFAULT 0").run();
+  } catch (e) {
+    // Column already exists
+  }
+
+  const app = express();
 
   app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
@@ -201,17 +214,17 @@ async function startServer() {
       if (id) {
         const stmt = db.prepare(`
           UPDATE settings SET
-            logo = ?, signature = ?, provider_name = ?, provider_nit = ?, 
-            provider_address = ?, provider_phone = ?, is_default = ?
-          WHERE id = ? AND user_id = ?
+  logo = ?, signature = ?, provider_name = ?, provider_nit = ?,
+    provider_address = ?, provider_phone = ?, is_default = ?
+      WHERE id = ? AND user_id = ?
         `);
         stmt.run(logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default ? 1 : 0, id, req.user.id);
         res.json({ id });
       } else {
         const stmt = db.prepare(`
-          INSERT INTO settings (user_id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+          INSERT INTO settings(user_id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default)
+  VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+    `);
         const info = stmt.run(req.user.id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default ? 1 : 0);
         res.json({ id: info.lastInsertRowid });
       }
@@ -265,15 +278,15 @@ async function startServer() {
         const stmt = db.prepare(`
           UPDATE invoices 
           SET type = ?, invoice_number = ?, date = ?, client_name = ?, total = ?, data = ?
-          WHERE id = ? AND user_id = ?
-        `);
+    WHERE id = ? AND user_id = ?
+      `);
         stmt.run(type || 'payment_account', invoiceNumber, date, acquiringCompany, grandTotal, JSON.stringify(data), id, req.user.id);
         res.json({ id });
       } else {
         const stmt = db.prepare(`
-          INSERT INTO invoices (user_id, type, invoice_number, date, client_name, total, data)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
+          INSERT INTO invoices(user_id, type, invoice_number, date, client_name, total, data)
+  VALUES(?, ?, ?, ?, ?, ?, ?)
+    `);
         const info = stmt.run(req.user.id, type || 'payment_account', invoiceNumber, date, acquiringCompany, grandTotal, JSON.stringify(data));
         res.json({ id: info.lastInsertRowid });
       }
@@ -290,7 +303,7 @@ async function startServer() {
         SELECT invoice_number 
         FROM invoices 
         WHERE type = ? AND user_id = ?
-        ORDER BY CAST(invoice_number AS INTEGER) DESC 
+    ORDER BY CAST(invoice_number AS INTEGER) DESC 
         LIMIT 1
       `).get(type, req.user.id);
 
