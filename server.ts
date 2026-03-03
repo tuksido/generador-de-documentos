@@ -111,9 +111,13 @@ async function startServer() {
 
   const app = express();
 
-  // Request Logging Middleware
+  // Robust Request Logging
   app.use((req, res, next) => {
-    console.log(`[Request] ${req.method} ${req.url}`);
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode} - ${duration}ms`);
+    });
     next();
   });
 
@@ -371,6 +375,16 @@ async function startServer() {
       }
     });
   }
+
+  // Global Express Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('[FINAL_CATCH] Express Error:', err);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: err.message,
+      path: req.url
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);

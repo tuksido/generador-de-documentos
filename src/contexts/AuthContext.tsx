@@ -40,11 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}: Login failed`);
       setUser(data.user);
     } else {
       const text = await res.text();
-      throw new Error(`Error del servidor (no JSON): ${text.substring(0, 100)}`);
+      const statusText = text.trim() || `(Sin cuerpo de respuesta - Status: ${res.status})`;
+      throw new Error(`Error ${res.status}: ${statusText.substring(0, 100)}`);
     }
   };
 
@@ -57,11 +58,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Signup failed');
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}: Signup failed`);
       setUser(data.user);
     } else {
       const text = await res.text();
-      throw new Error(`Error del servidor (no JSON): ${text.substring(0, 100)}`);
+      const statusText = text.trim() || `(Sin cuerpo de respuesta - Status: ${res.status})`;
+      throw new Error(`Error ${res.status}: ${statusText.substring(0, 100)}`);
     }
   };
 
