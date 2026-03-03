@@ -111,6 +111,18 @@ async function startServer() {
 
   const app = express();
 
+  // Simple CORS & OPTIONS handling
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      console.log(`[OPTIONS] Preflight for ${req.url}`);
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Robust Request Logging
   app.use((req, res, next) => {
     const start = Date.now();
@@ -353,8 +365,19 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development (only if EXPLICITLY development)
-  const isProd = getEnv('NODE_ENV') === "production" || getEnv('NODE_ENV') === undefined;
+  // API Catch-All (if no route matched)
+  app.all("/api/*", (req, res) => {
+    console.warn(`[API_MISS] ${req.method} ${req.url} - Returning 404`);
+    res.status(404).json({
+      error: "API endpoint not found",
+      method: req.method,
+      path: req.url
+    });
+  });
+
+  // Vite middleware for development
+  const isProd = getEnv('NODE_ENV') === "production" || getEnv('RAILWAY_ENVIRONMENT') !== undefined || getEnv('PORT') !== undefined;
+  console.log(`[ModeCheck] isProd: ${isProd} (NODE_ENV: ${getEnv('NODE_ENV')})`);
 
   if (!isProd) {
     console.log('Starting Vite development server...');
