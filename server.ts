@@ -7,22 +7,32 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { fileURLToPath } from 'url';
 
+import fs from "fs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getEnv = (name: string) => {
   const p = (globalThis as any)['process'];
-  return p && p['env'] ? p['env'][name] : undefined;
+  const val = p && p['env'] ? p['env'][name] : undefined;
+  console.log(`[EnvCheck] ${name}: ${val ? 'SET' : 'MISSING'}`);
+  return val;
 };
 
 const db = new Database("invoices.db");
 const JWT_SECRET = getEnv('JWT_SECRET') || "docugen-secret-key-2024";
 
-console.log('--- Server Start Info ---');
+console.log('--- Server Start Diagnostics ---');
 console.log('NODE_ENV:', getEnv('NODE_ENV'));
-console.log('PORT ENVAR:', getEnv('PORT'));
+console.log('PORT:', getEnv('PORT'));
 console.log('__dirname:', __dirname);
-console.log('-------------------------');
+const distPath = path.resolve(__dirname, 'dist');
+console.log('Static files path:', distPath);
+console.log('Dist exists:', fs.existsSync(distPath));
+if (fs.existsSync(distPath)) {
+  console.log('Files in dist:', fs.readdirSync(distPath));
+}
+console.log('-------------------------------');
 
 // Initialize database
 db.exec(`
@@ -306,17 +316,26 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
-  if (getEnv('NODE_ENV') !== "production") {
+  // Vite middleware for development (only if EXPLICITLY development)
+  const isProd = getEnv('NODE_ENV') === "production" || getEnv('NODE_ENV') === undefined;
+
+  if (!isProd) {
+    console.log('Starting Vite development server...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
+    console.log('Starting in Production mode...');
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      const p = path.resolve(__dirname, 'dist', 'index.html');
+      if (fs.existsSync(p)) {
+        res.sendFile(p);
+      } else {
+        res.status(404).send('Static files not found. Ensure "npm run build" was executed.');
+      }
     });
   }
 
