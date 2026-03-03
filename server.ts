@@ -14,8 +14,8 @@ const db = new Database("invoices.db");
 const JWT_SECRET = process.env['JWT_SECRET'] || "docugen-secret-key-2024";
 
 console.log('--- Server Start Info ---');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT ENVAR:', process.env.PORT);
+console.log('NODE_ENV:', process.env['NODE_ENV']);
+console.log('PORT ENVAR:', process.env['PORT']);
 console.log('__dirname:', __dirname);
 console.log('-------------------------');
 
@@ -83,7 +83,7 @@ try {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = Number(process.env['PORT']) || 3000;
 
   app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
@@ -302,7 +302,7 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env['NODE_ENV'] !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
