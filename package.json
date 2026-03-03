@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "start": "tsx server.ts",
-    "build": "vite build",
+    "start": "node dist-server/server.js",
+    "build": "vite build && npx esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.js --format=esm --external:better-sqlite3 --external:vite",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

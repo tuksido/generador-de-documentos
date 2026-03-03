@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
@@ -12,35 +11,44 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const getEnv = (name: string) => (process.env as any)[name];
-
-// Production Detection
-const isProd = getEnv('NODE_ENV') === "production" || getEnv('RAILWAY_ENVIRONMENT') !== undefined || getEnv('PORT') !== undefined;
 const PORT = Number(getEnv('PORT')) || 3000;
 const JWT_SECRET = getEnv('JWT_SECRET') || "docugen-secret-key-2024";
 
-console.log(`[BOOT] Mode: ${isProd ? 'Production' : 'Development'} | Port: ${PORT}`);
-
+// 1. FAST BIND - Open the port IMMEDIATELY to satisfy Railway's health check
 const app = express();
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[READY] Server listening on ${PORT}`);
+});
 
-// 1. Basic Middleware
+// 2. Production Detection
+const isProd = getEnv('NODE_ENV') === "production" || getEnv('RAILWAY_ENVIRONMENT') !== undefined || !!getEnv('PORT');
+console.log(`[BOOT] Mode: ${isProd ? 'Production' : 'Development'}`);
+
+// 3. Setup Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(cookieParser());
 
-// 2. Logging & CORS
+// CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
+// Logging
+app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
-    console.log(`${req.method} ${req.url} ${res.statusCode} - ${Date.now() - start}ms`);
+    if (!req.url.startsWith('/v1/health')) {
+      console.log(`${new Date().toISOString()} | ${req.method} ${req.url} ${res.statusCode} - ${Date.now() - start}ms`);
+    }
   });
   next();
 });
 
-// 3. Database Initialization (Non-blocking for server start)
+// 4. Database Init (Decoupled from startup)
 let db: any;
 function initDb() {
   try {
@@ -51,19 +59,18 @@ function initDb() {
       CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, is_default INTEGER DEFAULT 0, logo TEXT, signature TEXT, provider_name TEXT, provider_nit TEXT, provider_address TEXT, provider_phone TEXT, FOREIGN KEY(user_id) REFERENCES users(id));
       CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, nit TEXT, address TEXT, phone TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, name), FOREIGN KEY(user_id) REFERENCES users(id));
     `);
-    // Rapid migrations
     const tables = ['invoices', 'settings', 'clients'];
     tables.forEach(t => { try { db.prepare(`ALTER TABLE ${t} ADD COLUMN user_id INTEGER`).run(); } catch (e) { } });
     try { db.prepare("ALTER TABLE users ADD COLUMN reset_token TEXT").run(); } catch (e) { }
     try { db.prepare("ALTER TABLE settings ADD COLUMN is_default INTEGER DEFAULT 0").run(); } catch (e) { }
-    console.log('[DB] Ready');
+    console.log('[DB] Database ready');
   } catch (err) {
     console.error('[DB] Error:', err);
   }
 }
 initDb();
 
-// 4. API Routes
+// 5. Auth Middleware
 const authenticateToken = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -74,24 +81,23 @@ const authenticateToken = (req: any, res: any, next: any) => {
   });
 };
 
-app.get("/v1/health", (req, res) => res.json({ status: "ok" }));
-app.get("/v1/ping", (req, res) => res.json({ pong: true, db: !!db }));
+// 6. Routes
+app.get("/v1/health", (req, res) => res.json({ status: "up", db: !!db }));
+app.get("/v1/ping", (req, res) => res.send("pong"));
 
+// Signup routes
 app.post("/signup_prod", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Required fields missing" });
+  if (!email || !password) return res.status(400).json({ error: "Missing fields" });
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const info = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)").run(email, hashedPassword);
     const token = jwt.sign({ id: info.lastInsertRowid, email }, JWT_SECRET);
     res.cookie("token", token, { httpOnly: true, sameSite: 'lax' });
     res.json({ user: { id: info.lastInsertRowid, email } });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
 
-// Auth
 app.post("/v1/auth/signup", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -100,9 +106,7 @@ app.post("/v1/auth/signup", async (req, res) => {
     const token = jwt.sign({ id: info.lastInsertRowid, email }, JWT_SECRET);
     res.cookie("token", token, { httpOnly: true, sameSite: 'lax' });
     res.json({ user: { id: info.lastInsertRowid, email } });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
 
 app.post("/v1/auth/login", async (req, res) => {
@@ -116,7 +120,7 @@ app.post("/v1/auth/login", async (req, res) => {
 
 app.post("/v1/auth/logout", (req, res) => {
   res.clearCookie("token");
-  res.json({ status: "success" });
+  res.json({ success: true });
 });
 
 app.get("/v1/auth/me", (req, res) => {
@@ -184,28 +188,32 @@ app.get("/v1/invoices/next-number/:type", authenticateToken, (req: any, res) => 
   res.json({ nextNumber: String(next).padStart(4, '0') });
 });
 
-// 5. Static Files & Catch-all
-if (isProd) {
-  const distPath = path.resolve(__dirname, 'dist');
-  app.use(express.static(distPath));
-  app.get('*', (req, res) => {
-    if (req.url.startsWith('/v1/')) return res.status(404).json({ error: "Endpoint not found" });
-    const indexFile = path.resolve(distPath, 'index.html');
-    if (fs.existsSync(indexFile)) res.sendFile(indexFile);
-    else res.status(404).send("Production build not found. Run 'npm run build'.");
-  });
-} else {
-  const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
-  app.use(vite.middlewares);
+// 7. Static Files & Dev Server
+async function setupFrontend() {
+  if (isProd) {
+    const distPath = path.resolve(__dirname, 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      if (req.url.startsWith('/v1/')) return res.status(404).json({ error: "API missing" });
+      const indexFile = path.resolve(distPath, 'index.html');
+      if (fs.existsSync(indexFile)) res.sendFile(indexFile);
+      else res.status(404).send("Build missing. Run 'npm run build'.");
+    });
+  } else {
+    // Dynamic import for Vite to avoid bundling it in production
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.error('[DEV] Vite failed to load:', e);
+    }
+  }
 }
+setupFrontend();
 
-// 6. Global Error Handler
+// 8. Global Error Handler
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error('[Error]', err.message);
-  res.status(500).json({ error: "Internal Server Error", message: err.message });
-});
-
-// 7. Start Listening
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[READY] Port ${PORT}`);
+  console.error('[FATAL]', err.message);
+  res.status(500).json({ error: "Server Error", message: err.message });
 });
