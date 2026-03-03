@@ -37,9 +37,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
-    setUser(data.user);
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      setUser(data.user);
+    } else {
+      const text = await res.text();
+      throw new Error(`Error del servidor (no JSON): ${text.substring(0, 100)}`);
+    }
   };
 
   const signup = async (email: string, password: string) => {
@@ -48,9 +54,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
-    setUser(data.user);
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Signup failed');
+      setUser(data.user);
+    } else {
+      const text = await res.text();
+      throw new Error(`Error del servidor (no JSON): ${text.substring(0, 100)}`);
+    }
   };
 
   const logout = async () => {

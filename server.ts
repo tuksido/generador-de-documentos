@@ -129,6 +129,7 @@ async function startServer() {
   // Auth Endpoints
   app.post("/api/auth/signup", async (req, res) => {
     const { email, password } = req.body;
+    console.log(`[SignupAttempt] Email: ${email}`);
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
       const stmt = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)");
@@ -136,8 +137,9 @@ async function startServer() {
       const token = jwt.sign({ id: info.lastInsertRowid, email }, JWT_SECRET);
       res.cookie("token", token, { httpOnly: true, sameSite: 'lax' });
       res.json({ user: { id: info.lastInsertRowid, email } });
-    } catch (error) {
-      res.status(400).json({ error: "Email already exists" });
+    } catch (error: any) {
+      console.error('[SignupError]', error);
+      res.status(400).json({ error: error.message || "Signup failed" });
     }
   });
 
