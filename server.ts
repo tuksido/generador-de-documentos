@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const db = new Database("invoices.db");
-const JWT_SECRET = process.env.JWT_SECRET || "docugen-secret-key-2024";
+const JWT_SECRET = process.env['JWT_SECRET'] || "docugen-secret-key-2024";
 
 console.log('--- Server Start Info ---');
 console.log('NODE_ENV:', process.env.NODE_ENV);
