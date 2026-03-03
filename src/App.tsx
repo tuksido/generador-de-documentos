@@ -175,8 +175,8 @@ function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/invoices').then(res => res.json()),
-      fetch('/api/clients').then(res => res.json())
+      fetch('/v1/invoices').then(res => res.json()),
+      fetch('/v1/clients').then(res => res.json())
     ]).then(([invoicesData, clientsData]) => {
       setInvoices(invoicesData);
       setClients(clientsData);
@@ -487,7 +487,7 @@ function History() {
     if (location.state?.searchTerm) {
       setSearchTerm(location.state.searchTerm);
     }
-    fetch('/api/invoices')
+    fetch('/v1/invoices')
       .then(res => res.json())
       .then(data => {
         setInvoices(data);
@@ -648,8 +648,8 @@ function ClientsList() {
   const fetchClients = () => {
     setLoading(true);
     Promise.all([
-      fetch('/api/clients').then(res => res.json()),
-      fetch('/api/invoices').then(res => res.json())
+      fetch('/v1/clients').then(res => res.json()),
+      fetch('/v1/invoices').then(res => res.json())
     ]).then(([clientsData, invoicesData]) => {
       setClients(clientsData);
       setInvoices(invoicesData);
@@ -669,7 +669,7 @@ function ClientsList() {
     if (!editingClient.name) return alert('El nombre es obligatorio');
     setIsSaving(true);
     try {
-      const response = await fetch('/api/clients', {
+      const response = await fetch('/v1/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingClient)
@@ -1035,7 +1035,7 @@ function SettingsPage() {
 
   const fetchProfiles = () => {
     setLoading(true);
-    fetch('/api/settings')
+    fetch('/v1/settings')
       .then(res => res.json())
       .then(data => {
         setProfiles(data);
@@ -1047,7 +1047,7 @@ function SettingsPage() {
     if (!editingProfile.provider_name) return alert('El nombre es obligatorio');
     setIsSaving(true);
     try {
-      await fetch('/api/settings', {
+      await fetch('/v1/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingProfile)
@@ -1064,7 +1064,7 @@ function SettingsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar este perfil?')) return;
     try {
-      await fetch(`/api/settings/${id}`, { method: 'DELETE' });
+      await fetch(`/v1/settings/${id}`, { method: 'DELETE' });
       fetchProfiles();
     } catch (err) {
       alert('Error al eliminar');
@@ -1291,8 +1291,8 @@ function CreateInvoice() {
 
   useEffect(() => {
     // Fetch profiles and clients
-    fetch('/api/settings').then(res => res.json()).then(setProfiles);
-    fetch('/api/clients').then(res => res.json()).then(setClients);
+    fetch('/v1/settings').then(res => res.json()).then(setProfiles);
+    fetch('/v1/clients').then(res => res.json()).then(setClients);
   }, []);
 
   // Track whether we have already bootstrapped from initialData
@@ -1332,7 +1332,7 @@ function CreateInvoice() {
   // Fetch next invoice number when docType changes (only for new docs)
   useEffect(() => {
     if (!location.state?.initialData) {
-      fetch(`/api/invoices/next-number/${docType}`)
+      fetch(`/v1/invoices/next-number/${docType}`)
         .then(res => res.json())
         .then(data => {
           setInvoiceData(prev => ({ ...prev, invoiceNumber: data.nextNumber }));
@@ -1419,7 +1419,7 @@ function CreateInvoice() {
     try {
       // Automatically save/update client data
       if (invoiceData.acquiringCompany) {
-        await fetch('/api/clients', {
+        await fetch('/v1/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1430,10 +1430,10 @@ function CreateInvoice() {
           })
         });
         // Refresh clients list in background
-        fetch('/api/clients').then(res => res.json()).then(setClients);
+        fetch('/v1/clients').then(res => res.json()).then(setClients);
       }
 
-      const response = await fetch('/api/invoices', {
+      const response = await fetch('/v1/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

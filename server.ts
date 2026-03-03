@@ -149,7 +149,7 @@ async function startServer() {
   };
 
   // Auth Endpoints
-  app.post("/api/auth/signup", async (req, res) => {
+  app.post("/v1/auth/signup", async (req, res) => {
     console.log('[SignupRequest] Received:', req.body);
     const { email, password } = req.body;
     if (!email || !password) {
@@ -170,7 +170,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/v1/auth/login", async (req, res) => {
     const { email, password } = req.body;
     const user: any = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -181,12 +181,12 @@ async function startServer() {
     res.json({ user: { id: user.id, email: user.email } });
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/v1/auth/logout", (req, res) => {
     res.clearCookie("token");
     res.json({ status: "success" });
   });
 
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/v1/auth/me", (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.json({ user: null });
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
@@ -195,7 +195,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/auth/forgot-password", (req, res) => {
+  app.post("/v1/auth/forgot-password", (req, res) => {
     const { email } = req.body;
     const user: any = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -206,7 +206,7 @@ async function startServer() {
     res.json({ message: "Reset link sent to email", debug_token: resetToken });
   });
 
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/v1/auth/reset-password", async (req, res) => {
     const { token, newPassword } = req.body;
     const user: any = db.prepare("SELECT * FROM users WHERE reset_token = ?").get(token);
     if (!user) return res.status(400).json({ error: "Invalid or expired token" });
@@ -217,11 +217,11 @@ async function startServer() {
   });
 
   // API routes
-  app.get("/api/health", (req, res) => {
+  app.get("/v1/health", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
-  app.get("/api/ping", (req, res) => {
+  app.get("/v1/ping", (req, res) => {
     res.json({
       pong: true,
       env: getEnv('NODE_ENV') || 'not set',
@@ -231,7 +231,7 @@ async function startServer() {
   });
 
   // Settings (Company Profiles) Endpoints
-  app.get("/api/settings", authenticateToken, (req: any, res) => {
+  app.get("/v1/settings", authenticateToken, (req: any, res) => {
     try {
       const settings = db.prepare("SELECT * FROM settings WHERE user_id = ? ORDER BY is_default DESC, id ASC").all(req.user.id);
       res.json(settings);
@@ -240,7 +240,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/settings", authenticateToken, (req: any, res) => {
+  app.post("/v1/settings", authenticateToken, (req: any, res) => {
     const { id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default } = req.body;
     try {
       if (is_default) {
@@ -270,7 +270,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/settings/:id", authenticateToken, (req: any, res) => {
+  app.delete("/v1/settings/:id", authenticateToken, (req: any, res) => {
     try {
       db.prepare("DELETE FROM settings WHERE id = ? AND user_id = ?").run(req.params.id, req.user.id);
       res.json({ status: "success" });
@@ -280,7 +280,7 @@ async function startServer() {
   });
 
   // Clients Endpoints
-  app.get("/api/clients", authenticateToken, (req: any, res) => {
+  app.get("/v1/clients", authenticateToken, (req: any, res) => {
     try {
       const clients = db.prepare("SELECT * FROM clients WHERE user_id = ? ORDER BY name ASC").all(req.user.id);
       res.json(clients);
@@ -289,7 +289,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/clients", authenticateToken, (req: any, res) => {
+  app.post("/v1/clients", authenticateToken, (req: any, res) => {
     const { id, name, nit, address, phone } = req.body;
     try {
       if (id) {
@@ -307,7 +307,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/invoices", authenticateToken, (req: any, res) => {
+  app.post("/v1/invoices", authenticateToken, (req: any, res) => {
     const { id, type, invoiceNumber, date, acquiringCompany, grandTotal, data } = req.body;
     try {
       if (id) {
@@ -332,7 +332,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/invoices/next-number/:type", authenticateToken, (req: any, res) => {
+  app.get("/v1/invoices/next-number/:type", authenticateToken, (req: any, res) => {
     const { type } = req.params;
     try {
       const result = db.prepare(`
@@ -352,7 +352,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/invoices", authenticateToken, (req: any, res) => {
+  app.get("/v1/invoices", authenticateToken, (req: any, res) => {
     try {
       const invoices = db.prepare("SELECT * FROM invoices WHERE user_id = ? ORDER BY created_at DESC").all(req.user.id);
       res.json(invoices.map((inv: any) => ({
@@ -366,7 +366,7 @@ async function startServer() {
   });
 
   // API Catch-All (if no route matched)
-  app.all("/api/*", (req, res) => {
+  app.all("/v1/*", (req, res) => {
     console.warn(`[API_MISS] ${req.method} ${req.url} - Returning 404`);
     res.status(404).json({
       error: "API endpoint not found",
