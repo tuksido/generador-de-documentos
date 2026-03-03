@@ -111,6 +111,12 @@ async function startServer() {
 
   const app = express();
 
+  // Request Logging Middleware
+  app.use((req, res, next) => {
+    console.log(`[Request] ${req.method} ${req.url}`);
+    next();
+  });
+
   app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
 
@@ -128,8 +134,12 @@ async function startServer() {
 
   // Auth Endpoints
   app.post("/api/auth/signup", async (req, res) => {
+    console.log('[SignupRequest] Received:', req.body);
     const { email, password } = req.body;
-    console.log(`[SignupAttempt] Email: ${email}`);
+    if (!email || !password) {
+      console.error('[SignupError] Missing email or password');
+      return res.status(400).json({ error: "Email and password are required" });
+    }
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
       const stmt = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)");
@@ -137,8 +147,9 @@ async function startServer() {
       const token = jwt.sign({ id: info.lastInsertRowid, email }, JWT_SECRET);
       res.cookie("token", token, { httpOnly: true, sameSite: 'lax' });
       res.json({ user: { id: info.lastInsertRowid, email } });
+      console.log('[SignupSuccess] User created:', email);
     } catch (error: any) {
-      console.error('[SignupError]', error);
+      console.error('[SignupError] Detail:', error);
       res.status(400).json({ error: error.message || "Signup failed" });
     }
   });
@@ -366,4 +377,6 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('[FATAL] startServer failed:', err);
+});
