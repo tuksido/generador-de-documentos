@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       host: true, // Allows access from other devices on the same network
       port: 3000,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: process.env['DISABLE_HMR'] !== 'true',
     },
   };
 });
