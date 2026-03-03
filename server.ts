@@ -12,6 +12,14 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+console.log('--- PROC START ---');
+console.log('CWD:', process.cwd());
+console.log('FILES:', fs.readdirSync('.').slice(0, 10));
+if (fs.existsSync('dist')) {
+  console.log('DIST_FILES:', fs.readdirSync('dist').slice(0, 10));
+}
+console.log('------------------');
+
 const getEnv = (name: string) => {
   return (process.env as any)[name];
 };
@@ -141,6 +149,12 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
+
+  // Explicit POST Debug
+  app.all("/debug", (req, res) => {
+    console.log(`[DEBUG_ALL] ${req.method} ${req.url}`);
+    res.json({ method: req.method, url: req.url, body: req.body });
+  });
 
   // ROOT LEVEL DEBUG ROUTES (To bypass any path-based blocking)
   app.post("/signup_prod", async (req, res) => {
