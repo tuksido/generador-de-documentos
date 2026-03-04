@@ -2,5 +2,11 @@
     "$schema": "https://railway.app/get-started/config/railway.schema.json",
     "build": {
         "builder": "NIXPACKS"
+    },
+    "deploy": {
+        "startCommand": "cross-env NODE_ENV=production tsx server.ts",
+        "healthcheckPath": "/v1/health",
+        "healthcheckTimeout": 60,
+        "restartPolicyType": "ON_FAILURE"
     }
 }
