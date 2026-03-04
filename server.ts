@@ -10,8 +10,10 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Railway automatically sets NODE_ENV=production and PORT
-const isProd = process.env.NODE_ENV === "production";
+// Railway sets PORT but NOT NODE_ENV. Detect production by PORT presence.
+// Locally: PORT is not set  → isProd=false → dev mode (Vite middleware)
+// Railway: PORT=8080 is set → isProd=true  → serve static dist/
+const isProd = !!process.env.PORT || process.env.NODE_ENV === "production";
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "docugen-secret-key-2024";
 
