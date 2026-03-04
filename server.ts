@@ -179,7 +179,10 @@ app.get("/v1/invoices/next-number/:type", auth, (req: any, res) => {
   res.json({ nextNumber: String(next).padStart(4, '0') });
 });
 
-// Static / Vite
+// 8. Start listening IMMEDIATELY - Railway requires fast port binding
+app.listen(PORT, "0.0.0.0", () => console.log(`[READY] Port ${PORT}`));
+
+// 9. Static / Vite setup happens in background
 async function setup() {
   if (isProd) {
     const dist = path.resolve(process.cwd(), 'dist');
@@ -191,17 +194,19 @@ async function setup() {
       fs.existsSync(idx) ? res.sendFile(idx) : res.status(503).send('Build missing');
     });
   } else {
-    const { createServer } = await import('vite');
-    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
-    app.use(vite.middlewares);
+    try {
+      const { createServer } = await import('vite');
+      const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+      app.use(vite.middlewares);
+      console.log(`[BOOT] Vite middleware loaded`);
+    } catch (e) { console.error('[BOOT] Vite error', e); }
   }
 }
 
 setup().catch(err => console.error('[SETUP]', err));
 
+// Global Error Handler needs to be registered
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error(err);
-  res.status(500).json({ error: err.message });
+  console.error('[ERROR]', err.message);
+  res.status(500).json({ error: "Server Error" });
 });
-
-app.listen(PORT, "0.0.0.0", () => console.log(`[READY] Port ${PORT}`));
