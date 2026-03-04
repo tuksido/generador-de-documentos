@@ -4,9 +4,10 @@
         "builder": "NIXPACKS"
     },
     "deploy": {
-        "startCommand": "cross-env NODE_ENV=production tsx server.ts",
+        "startCommand": "npm start",
         "healthcheckPath": "/v1/health",
-        "healthcheckTimeout": 60,
-        "restartPolicyType": "ON_FAILURE"
+        "healthcheckTimeout": 120,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 3
     }
 }
