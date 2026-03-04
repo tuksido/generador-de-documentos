@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node dist-server/server.js",
-    "build": "vite build && node_modules/.bin/esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.js --format=esm --external:better-sqlite3 --external:vite",
+    "build": "vite build && node_modules/.bin/esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.js --format=esm --packages=external",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
