@@ -17,7 +17,11 @@ const isProd = !!process.env.PORT || process.env.NODE_ENV === "production";
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "docugen-secret-key-2024";
 
+process.on('uncaughtException', err => console.error('[FATAL UNCAUGHT]', err));
+process.on('unhandledRejection', err => console.error('[FATAL REJECTION]', err));
+
 console.log(`[BOOT] isProd=${isProd} PORT=${PORT}`);
+
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -32,8 +36,9 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
+  console.log(`>> [REQ] ${req.method} ${req.url}`);
   const start = Date.now();
-  res.on('finish', () => console.log(`${req.method} ${req.url} ${res.statusCode} ${Date.now() - start}ms`));
+  res.on('finish', () => console.log(`<< [RES] ${req.method} ${req.url} ${res.statusCode} ${Date.now() - start}ms`));
   next();
 });
 
