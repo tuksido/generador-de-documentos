@@ -180,7 +180,10 @@ app.get("/v1/invoices/next-number/:type", auth, (req: any, res) => {
 });
 
 // 8. Start listening IMMEDIATELY - Railway requires fast port binding
-app.listen(PORT, "0.0.0.0", () => console.log(`[READY] Port ${PORT}`));
+const server = app.listen(PORT, "0.0.0.0", () => {
+  const addr = server.address();
+  console.log(`[READY] Server tightly bound to ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port} (Family: ${addr?.family})`}`);
+});
 
 // 9. Static / Vite setup happens in background
 async function setup() {
