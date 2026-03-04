@@ -16,10 +16,17 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: true, // Allows access from other devices on the same network
-      port: 3000,
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      hmr: true,
+      port: 5173,
+      proxy: {
+        '/v1': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/signup_prod': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

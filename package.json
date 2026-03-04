@@ -7,9 +7,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "tsx server.ts",
-    "start": "node dist-server/server.js",
-    "build": "vite build && npx esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.js --format=esm --external:better-sqlite3 --external:vite",
+    "dev": "cross-env NODE_ENV=development tsx server.ts",
+    "start": "cross-env NODE_ENV=production tsx server.ts",
+    "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -22,6 +22,7 @@
     "better-sqlite3": "^12.4.1",
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
+    "cross-env": "^7.0.3",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "html2canvas": "^1.4.1",
@@ -34,8 +35,8 @@
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
-    "vite": "^6.2.0",
     "tsx": "^4.21.0",
+    "vite": "^6.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
