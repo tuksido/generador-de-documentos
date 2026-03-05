@@ -179,37 +179,44 @@ app.get("/v1/invoices/next-number/:type", auth, (req: any, res) => {
   res.json({ nextNumber: String(next).padStart(4, '0') });
 });
 
-// 8. Start listening IMMEDIATELY - Railway requires fast port binding
-const server = app.listen(PORT, "0.0.0.0", () => {
-  const addr = server.address();
-  console.log(`[READY] Server tightly bound to ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port} (Family: ${addr?.family})`}`);
-});
+// 8. Static Files (Production)
+if (isProd) {
+  const dist = path.resolve(process.cwd(), 'dist');
+  console.log(`[STATIC] dist at ${dist}, exists: ${fs.existsSync(dist)}`);
 
-// 9. Static / Vite setup happens in background
-async function setup() {
-  if (isProd) {
-    const dist = path.resolve(process.cwd(), 'dist');
-    console.log(`[STATIC] dist at ${dist}, exists: ${fs.existsSync(dist)}`);
-    app.use(express.static(dist));
-    app.get('*', (req, res) => {
-      if (req.path.startsWith('/v1/')) return res.status(404).json({ error: 'Not found' });
-      const idx = path.join(dist, 'index.html');
-      fs.existsSync(idx) ? res.sendFile(idx) : res.status(503).send('Build missing');
-    });
-  } else {
-    try {
-      const { createServer } = await import('vite');
-      const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
-      app.use(vite.middlewares);
-      console.log(`[BOOT] Vite middleware loaded`);
-    } catch (e) { console.error('[BOOT] Vite error', e); }
-  }
+  // Register static routes synchronously so they are ready the instant the port binds
+  app.use(express.static(dist));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/v1/')) return res.status(404).json({ error: 'Not found' });
+    const idx = path.join(dist, 'index.html');
+    if (fs.existsSync(idx)) {
+      res.sendFile(idx);
+    } else {
+      res.status(503).send('Build missing');
+    }
+  });
 }
 
-setup().catch(err => console.error('[SETUP]', err));
+// 9. Vite Dev Server (Development only)
+if (!isProd) {
+  import('vite').then(({ createServer }) => {
+    createServer({ server: { middlewareMode: true }, appType: 'spa' })
+      .then(vite => {
+        app.use(vite.middlewares);
+        console.log(`[BOOT] Vite middleware loaded`);
+      })
+      .catch(e => console.error('[BOOT] Vite error', e));
+  });
+}
 
-// Global Error Handler needs to be registered
+// Global Error Handler needs to be registered LAST
 app.use((err: any, req: any, res: any, next: any) => {
   console.error('[ERROR]', err.message);
   res.status(500).json({ error: "Server Error" });
+});
+
+// 10. Start listening
+const server = app.listen(PORT, "0.0.0.0", () => {
+  const addr = server.address();
+  console.log(`[READY] Server tightly bound to ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port} (Family: ${addr?.family})`}`);
 });
