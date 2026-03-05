@@ -1069,7 +1069,11 @@ function SettingsPage() {
         fetchProfiles();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`Error al guardar: ${errorData.error || 'Servidor respondió con código ' + response.status}${errorData.message ? ' - ' + errorData.message : ''}`);
+        if (response.status === 401) {
+          alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión e ingresa de nuevo.');
+        } else {
+          alert(`Error al guardar: ${errorData.error || 'Servidor respondió con código ' + response.status}${errorData.message ? ' - ' + errorData.message : ''}`);
+        }
       }
     } catch (err: any) {
       console.error('Error saving profile:', err);
@@ -1473,7 +1477,11 @@ function CreateInvoice() {
         navigate('/history');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`Error al guardar: ${errorData.error || 'Error'} (${response.status})${errorData.message ? ' - ' + errorData.message : ''}`);
+        if (response.status === 401) {
+          alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión e ingresa de nuevo.');
+        } else {
+          alert(`Error al guardar: ${errorData.error || 'Error'} (${response.status})${errorData.message ? ' - ' + errorData.message : ''}`);
+        }
       }
     } catch (err: any) {
       console.error(err);

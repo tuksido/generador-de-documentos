@@ -85,9 +85,17 @@ try {
 const auth = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, (err: any, payload: any) => {
     if (err) return res.status(403).json({ error: "Forbidden" });
-    req.user = user;
+
+    // Verify user still exists in DB (prevents foreign key errors on ephemeral DB start)
+    const user = db.prepare("SELECT id FROM users WHERE id = ?").get(payload.id);
+    if (!user) {
+      res.clearCookie("token");
+      return res.status(401).json({ error: "Sesión inválida - por favor inicia sesión de nuevo" });
+    }
+
+    req.user = payload;
     next();
   });
 };
@@ -128,7 +136,15 @@ app.post("/v1/auth/logout", (req, res) => { res.clearCookie("token"); res.json({
 app.get("/v1/auth/me", (req, res) => {
   const token = req.cookies.token;
   if (!token) return res.json({ user: null });
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => res.json({ user: err ? null : user }));
+  jwt.verify(token, JWT_SECRET, (err: any, payload: any) => {
+    if (err) return res.json({ user: null });
+    const user = db.prepare("SELECT id, email FROM users WHERE id = ?").get(payload.id);
+    if (!user) {
+      res.clearCookie("token");
+      return res.json({ user: null });
+    }
+    res.json({ user: payload });
+  });
 });
 
 app.post("/v1/auth/forgot-password", (req, res) => {
