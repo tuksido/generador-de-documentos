@@ -506,8 +506,8 @@ function History() {
     )
   );
 
-  const totalInvoices = invoices.filter(i => i.type === 'invoice').reduce((acc, inv) => acc + Number(inv.total), 0);
-  const totalPayments = invoices.filter(i => i.type === 'payment_account').reduce((acc, inv) => acc + Number(inv.total), 0);
+  const totalInvoices = invoices.filter(i => i.type === 'invoice').reduce((acc, inv) => acc + Number(inv.total || inv.data?.grandTotal || 0), 0);
+  const totalPayments = invoices.filter(i => i.type === 'payment_account').reduce((acc, inv) => acc + Number(inv.total || inv.data?.grandTotal || 0), 0);
 
   const exportToExcel = () => {
     const dataToExport = filteredInvoices.map(inv => ({
@@ -515,7 +515,7 @@ function History() {
       'Fecha': new Date(inv.created_at).toLocaleDateString(),
       'Cliente': inv.client_name,
       'NIT': inv.data?.acquiringCompanyNit || '',
-      'Total': inv.total,
+      'Total': inv.total || inv.data?.grandTotal || 0,
       'Saldo': inv.data?.balance || 0,
       'Tipo': inv.type === 'invoice' ? 'Factura' : 'Cuenta de Cobro'
     }));
@@ -617,7 +617,7 @@ function History() {
                 </div>
               </div>
               <h4 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{inv.client_name || 'Sin Cliente'}</h4>
-              <p className="text-sm text-gray-500 mb-6 font-mono">$ {Number(inv.total).toLocaleString('es-CO')}</p>
+              <p className="text-sm text-gray-500 mb-6 font-mono">$ {Number(inv.total || inv.data?.grandTotal || 0).toLocaleString('es-CO')}</p>
 
               <div className="flex gap-2">
                 <button
@@ -916,7 +916,7 @@ function ClientsList() {
                           <span className="text-[10px] text-gray-400 font-medium">{new Date(inv.created_at).toLocaleDateString()}</span>
                         </div>
                         <div className="flex flex-col items-end mr-4">
-                          <span className="text-sm font-bold text-gray-900">$ {Number(inv.total).toLocaleString('es-CO')}</span>
+                          <span className="text-sm font-bold text-gray-900">$ {Number(inv.total || inv.data?.grandTotal || 0).toLocaleString('es-CO')}</span>
                         </div>
                         <button
                           onClick={() => {
@@ -1043,7 +1043,8 @@ function SettingsPage() {
       });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!editingProfile.provider_name) return alert('El nombre es obligatorio');
     setIsSaving(true);
     try {
@@ -1272,7 +1273,7 @@ function CreateInvoice() {
   const [invoiceData, setInvoiceData] = useState<any>({
     invoiceNumber: '',
     city: 'BOGOTÁ',
-    date: new Date().toLocaleDateString('es-CO'),
+    date: new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }),
     acquiringCompany: '',
     acquiringCompanyNit: '',
     acquiringCompanyAddress: '',
@@ -1391,18 +1392,22 @@ function CreateInvoice() {
 
   const addItem = () => {
     const newItems = [...invoiceData.items, { patient: '', procedure: '', total: 0 }];
-    handleInputChange('items', newItems);
+    setInvoiceData((prev: any) => ({ ...prev, items: newItems }));
   };
 
   const removeItem = (index: number) => {
     const newItems = invoiceData.items.filter((_: any, i: number) => i !== index);
-    handleInputChange('items', newItems);
+    setInvoiceData((prev: any) => ({ ...prev, items: newItems }));
   };
 
   const updateItem = (index: number, field: string, value: any) => {
-    const newItems = [...invoiceData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    handleInputChange('items', newItems);
+    setInvoiceData((prev: any) => {
+      const newItems = prev.items.map((item: any, i: number) => {
+        if (i === index) return { ...item, [field]: value };
+        return item;
+      });
+      return { ...prev, items: newItems };
+    });
   };
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
