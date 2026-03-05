@@ -1069,7 +1069,7 @@ function SettingsPage() {
         fetchProfiles();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`Error al guardar: ${errorData.error || 'Servidor respondió con código ' + response.status}`);
+        alert(`Error al guardar: ${errorData.error || 'Servidor respondió con código ' + response.status}${errorData.message ? ' - ' + errorData.message : ''}`);
       }
     } catch (err: any) {
       console.error('Error saving profile:', err);
@@ -1077,7 +1077,7 @@ function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar este perfil?')) return;
@@ -1473,7 +1473,7 @@ function CreateInvoice() {
         navigate('/history');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`Error al guardar: ${errorData.error || 'Respuesta del servidor no válida (' + response.status + ')'}`);
+        alert(`Error al guardar: ${errorData.error || 'Error'} (${response.status})${errorData.message ? ' - ' + errorData.message : ''}`);
       }
     } catch (err: any) {
       console.error(err);

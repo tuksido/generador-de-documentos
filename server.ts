@@ -52,9 +52,32 @@ try {
     CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, is_default INTEGER DEFAULT 0, logo TEXT, signature TEXT, provider_name TEXT, provider_nit TEXT, provider_address TEXT, provider_phone TEXT, FOREIGN KEY(user_id) REFERENCES users(id));
     CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, nit TEXT, address TEXT, phone TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, name), FOREIGN KEY(user_id) REFERENCES users(id));
   `);
-  ['invoices', 'settings', 'clients'].forEach(t => { try { db.prepare(`ALTER TABLE ${t} ADD COLUMN user_id INTEGER`).run(); } catch (e) { } });
-  try { db.prepare("ALTER TABLE users ADD COLUMN reset_token TEXT").run(); } catch (e) { }
-  try { db.prepare("ALTER TABLE settings ADD COLUMN is_default INTEGER DEFAULT 0").run(); } catch (e) { }
+
+  // Migration: Ensure all columns exist (SQLite doesn't mind if we try and fail gracefully)
+  const migrations = [
+    { table: 'invoices', column: 'user_id', type: 'INTEGER' },
+    { table: 'invoices', column: 'type', type: 'TEXT DEFAULT "payment_account"' },
+    { table: 'invoices', column: 'invoice_number', type: 'TEXT' },
+    { table: 'invoices', column: 'date', type: 'TEXT' },
+    { table: 'invoices', column: 'client_name', type: 'TEXT' },
+    { table: 'invoices', column: 'total', type: 'REAL' },
+    { table: 'invoices', column: 'data', type: 'TEXT' },
+    { table: 'settings', column: 'user_id', type: 'INTEGER' },
+    { table: 'settings', column: 'is_default', type: 'INTEGER DEFAULT 0' },
+    { table: 'settings', column: 'logo', type: 'TEXT' },
+    { table: 'settings', column: 'signature', type: 'TEXT' },
+    { table: 'clients', column: 'user_id', type: 'INTEGER' },
+    { table: 'users', column: 'reset_token', type: 'TEXT' },
+  ];
+
+  migrations.forEach(m => {
+    try {
+      db.prepare(`ALTER TABLE ${m.table} ADD COLUMN ${m.column} ${m.type}`).run();
+    } catch (e) {
+      // Ignore "duplicate column name" errors
+    }
+  });
+
   console.log('[DB] Ready');
 } catch (err) { console.error('[DB] Error:', err); }
 
@@ -216,8 +239,12 @@ if (!isProd) {
 
 // Global Error Handler needs to be registered LAST
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error('[ERROR]', err.message);
-  res.status(500).json({ error: "Server Error" });
+  console.error('[ERROR]', err);
+  res.status(500).json({
+    error: "Server Error",
+    message: err.message,
+    code: err.code
+  });
 });
 
 // 10. Start listening
@@ -225,3 +252,4 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   const addr = server.address();
   console.log(`[READY] Server tightly bound to ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port} (Family: ${addr?.family})`}`);
 });
+
