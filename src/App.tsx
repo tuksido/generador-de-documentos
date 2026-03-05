@@ -1059,15 +1059,21 @@ function SettingsPage() {
     if (!editingProfile.provider_name) return alert('El nombre es obligatorio');
     setIsSaving(true);
     try {
-      await fetch('/v1/settings', {
+      const response = await fetch('/v1/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingProfile)
       });
-      setEditingProfile(null);
-      fetchProfiles();
-    } catch (err) {
-      alert('Error al guardar');
+      if (response.ok) {
+        setEditingProfile(null);
+        fetchProfiles();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Error al guardar: ${errorData.error || 'Servidor respondió con código ' + response.status}`);
+      }
+    } catch (err: any) {
+      console.error('Error saving profile:', err);
+      alert('Error de conexión al guardar el perfil: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -1296,9 +1302,7 @@ function CreateInvoice() {
     concept: '',
     showConcept: true,
     items: [],
-    grandTotal: 0,
     deposit: 0,
-    balance: 0,
   });
 
   useEffect(() => {
@@ -1356,15 +1360,16 @@ function CreateInvoice() {
     }
   }, [docType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Recalculate totals whenever items or deposit change
-  useEffect(() => {
-    setInvoiceData(prev => {
-      const newTotal = (prev.items || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0);
-      const newBalance = newTotal - Number(prev.deposit || 0);
-      if (newTotal === prev.grandTotal && newBalance === prev.balance) return prev; // No change, skip update
-      return { ...prev, grandTotal: newTotal, balance: newBalance };
-    });
-  }, [invoiceData.items, invoiceData.deposit]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Derived state for totals
+  const computedTotal = (invoiceData.items || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0);
+  const computedBalance = computedTotal - Number(invoiceData.deposit || 0);
+
+  // Sync computed values into the data object for the template
+  const currentInvoiceData = {
+    ...invoiceData,
+    grandTotal: computedTotal,
+    balance: computedBalance
+  };
 
 
   const handleProfileSelect = (profileId: string) => {
@@ -1396,13 +1401,7 @@ function CreateInvoice() {
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setInvoiceData(prev => {
-      const newData = { ...prev, [field]: value };
-      if (field === 'grandTotal' || field === 'deposit') {
-        newData.balance = Number(newData.grandTotal) - Number(newData.deposit || 0);
-      }
-      return newData;
-    });
+    setInvoiceData(prev => ({ ...prev, [field]: value }));
   };
 
   const addItem = () => {
@@ -1439,7 +1438,7 @@ function CreateInvoice() {
     try {
       // Automatically save/update client data
       if (invoiceData.acquiringCompany) {
-        await fetch('/v1/clients', {
+        const clientRes = await fetch('/v1/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1449,8 +1448,10 @@ function CreateInvoice() {
             phone: invoiceData.acquiringCompanyPhone
           })
         });
+        if (!clientRes.ok) console.warn('No se pudo guardar/actualizar el cliente automáticamente');
+
         // Refresh clients list in background
-        fetch('/v1/clients').then(res => res.json()).then(setClients);
+        fetch('/v1/clients').then(res => res.json()).then(setClients).catch(() => { });
       }
 
       const response = await fetch('/v1/invoices', {
@@ -1462,20 +1463,21 @@ function CreateInvoice() {
           invoiceNumber: invoiceData.invoiceNumber,
           date: invoiceData.date,
           acquiringCompany: invoiceData.acquiringCompany,
-          grandTotal: invoiceData.grandTotal,
-          data: { ...invoiceData, logo, signature, type: docType }
+          grandTotal: computedTotal,
+          data: { ...currentInvoiceData, logo, signature, type: docType }
         })
       });
+
       if (response.ok) {
-        alert(invoiceData.id ? 'Documento actualizado exitosamente' : 'Documento guardado exitosamente');
+        alert(invoiceData.id ? 'Documento actualizado con éxito' : 'Documento guardado con éxito');
         navigate('/history');
       } else {
-        const errorData = await response.json();
-        alert(`Error al guardar: ${errorData.error || 'Error desconocido'}`);
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Error al guardar: ${errorData.error || 'Respuesta del servidor no válida (' + response.status + ')'}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Error al guardar el documento');
+      alert('Error de conexión al servidor. Por favor, verifica tu internet o intenta más tarde. Detalle: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -1810,7 +1812,7 @@ function CreateInvoice() {
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-emerald-100">
                     <span className="text-xs font-bold text-emerald-800">Saldo Pendiente</span>
-                    <span className="text-sm font-black text-emerald-900">$ {Number(invoiceData.balance).toLocaleString('es-CO')}</span>
+                    <span className="text-sm font-black text-emerald-900">$ {Number(computedBalance).toLocaleString('es-CO')}</span>
                   </div>
                 </div>
               </div>
@@ -1878,7 +1880,7 @@ function CreateInvoice() {
         <div className="relative">
           <InvoiceTemplate
             ref={templateRef}
-            data={invoiceData}
+            data={currentInvoiceData}
             logo={logo}
             signature={signature}
             paperSize={paperSize}

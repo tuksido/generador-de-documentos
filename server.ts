@@ -81,19 +81,24 @@ const signup = async (req: any, res: any) => {
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 };
 
+// Async error wrapper
+const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
 // Routes
 app.get("/v1/health", (req, res) => res.json({ ok: true }));
-app.post("/signup_prod", signup);
-app.post("/v1/auth/signup", signup);
+app.post("/signup_prod", asyncHandler(signup));
+app.post("/v1/auth/signup", asyncHandler(signup));
 
-app.post("/v1/auth/login", async (req, res) => {
+app.post("/v1/auth/login", asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user: any = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
   if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Invalid credentials" });
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
   res.cookie("token", token, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
   res.json({ user: { id: user.id, email: user.email } });
-});
+}));
 
 app.post("/v1/auth/logout", (req, res) => { res.clearCookie("token"); res.json({ ok: true }); });
 
@@ -112,14 +117,14 @@ app.post("/v1/auth/forgot-password", (req, res) => {
   res.json({ message: "Reset link sent", debug_token: resetToken });
 });
 
-app.post("/v1/auth/reset-password", async (req, res) => {
+app.post("/v1/auth/reset-password", asyncHandler(async (req, res) => {
   const { token, newPassword } = req.body;
   const user: any = db.prepare("SELECT * FROM users WHERE reset_token = ?").get(token);
   if (!user) return res.status(400).json({ error: "Invalid token" });
   const hash = await bcrypt.hash(newPassword, 10);
   db.prepare("UPDATE users SET password = ?, reset_token = NULL WHERE id = ?").run(hash, user.id);
   res.json({ ok: true });
-});
+}));
 
 app.get("/v1/settings", auth, (req: any, res) => res.json(db.prepare("SELECT * FROM settings WHERE user_id = ? ORDER BY is_default DESC, id ASC").all(req.user.id)));
 
