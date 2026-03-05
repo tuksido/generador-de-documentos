@@ -214,10 +214,10 @@ function Dashboard() {
   // 3. Accumulated Values
   const accumulatedInvoices = invoices
     .filter(i => i.type === 'invoice')
-    .reduce((acc, inv) => acc + Number(inv.total || 0), 0);
+    .reduce((acc, inv) => acc + Number(inv.total || inv.data?.grandTotal || 0), 0);
   const accumulatedPaymentAccounts = invoices
     .filter(i => i.type === 'payment_account')
-    .reduce((acc, inv) => acc + Number(inv.total || 0), 0);
+    .reduce((acc, inv) => acc + Number(inv.total || inv.data?.grandTotal || 0), 0);
 
   // 4. Client Stats (Deposit, Balance, Count)
   const clientStatsMap = invoices.reduce((acc: any, inv) => {
@@ -225,10 +225,14 @@ function Dashboard() {
     if (!acc[name]) {
       acc[name] = { name, count: 0, total: 0, deposit: 0, balance: 0 };
     }
+    const total = Number(inv.total || inv.data?.grandTotal || 0);
+    const deposit = Number(inv.data?.deposit || 0);
+    const balance = Number(inv.data?.balance || (total - deposit));
+
     acc[name].count += 1;
-    acc[name].total += Number(inv.total || 0);
-    acc[name].deposit += Number(inv.data?.deposit || 0);
-    acc[name].balance += Number(inv.data?.balance || 0);
+    acc[name].total += total;
+    acc[name].deposit += deposit;
+    acc[name].balance += balance;
     return acc;
   }, {});
 
@@ -487,14 +491,16 @@ function History() {
     if (location.state?.searchTerm) {
       setSearchTerm(location.state.searchTerm);
     }
+    setLoading(true);
     fetch('/v1/invoices')
       .then(res => res.json())
       .then(data => {
-        setInvoices(data);
+        setInvoices(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
+        console.error('Error fetching invoices:', err);
+        setInvoices([]);
         setLoading(false);
       });
   }, []);
@@ -1038,12 +1044,17 @@ function SettingsPage() {
     fetch('/v1/settings')
       .then(res => res.json())
       .then(data => {
-        setProfiles(data);
+        setProfiles(Array.isArray(data) ? data : []);
         setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching profiles:', err);
+        setLoading(false);
+        setProfiles([]);
       });
   };
 
-  const handleSave = async (e?: React.FormEvent) => {
+  const handleSave = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     if (!editingProfile.provider_name) return alert('El nombre es obligatorio');
     setIsSaving(true);
@@ -1336,7 +1347,11 @@ function CreateInvoice() {
       fetch(`/v1/invoices/next-number/${docType}`)
         .then(res => res.json())
         .then(data => {
-          setInvoiceData(prev => ({ ...prev, invoiceNumber: data.nextNumber }));
+          setInvoiceData(prev => ({ ...prev, invoiceNumber: data.nextNumber || '0001' }));
+        })
+        .catch(err => {
+          console.error('Error fetching next number:', err);
+          setInvoiceData(prev => ({ ...prev, invoiceNumber: '0001' }));
         });
     }
   }, [docType]); // eslint-disable-line react-hooks/exhaustive-deps
