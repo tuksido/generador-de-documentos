@@ -280,7 +280,7 @@ function Dashboard() {
           </div>
           <div className="text-xl font-black truncate mb-1">{topClient.name}</div>
           <div className="text-xs text-gray-400 font-bold mb-3">{topClient.count} Documentos Generados</div>
-          <div className="text-lg font-black text-blue-400">$ {topClient.total.toLocaleString('es-CO')}</div>
+          <div className="text-lg font-black text-blue-400 translate-no notranslate" translate="no">$ {topClient.total.toLocaleString('es-CO')}</div>
         </div>
 
         {/* Accumulated Invoices */}
@@ -291,7 +291,7 @@ function Dashboard() {
             </div>
             <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Acumulado Facturas</span>
           </div>
-          <div className="text-2xl font-black mb-1">$ {accumulatedInvoices.toLocaleString('es-CO')}</div>
+          <div className="text-2xl font-black mb-1 translate-no notranslate" translate="no">$ {accumulatedInvoices.toLocaleString('es-CO')}</div>
           <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Valor total en facturación</div>
         </div>
 
@@ -303,7 +303,7 @@ function Dashboard() {
             </div>
             <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Acumulado Cuentas Cobro</span>
           </div>
-          <div className="text-2xl font-black mb-1">$ {accumulatedPaymentAccounts.toLocaleString('es-CO')}</div>
+          <div className="text-2xl font-black mb-1 translate-no notranslate" translate="no">$ {accumulatedPaymentAccounts.toLocaleString('es-CO')}</div>
           <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Valor total en cuentas de cobro</div>
         </div>
 
@@ -315,7 +315,7 @@ function Dashboard() {
             </div>
             <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Saldo por Cobrar</span>
           </div>
-          <div className="text-2xl font-black text-rose-400 mb-1">$ {clientStatsArray.reduce((a, b) => a + b.balance, 0).toLocaleString('es-CO')}</div>
+          <div className="text-2xl font-black text-rose-400 mb-1 translate-no notranslate" translate="no">$ {clientStatsArray.reduce((a, b) => a + b.balance, 0).toLocaleString('es-CO')}</div>
           <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Cartera pendiente total</div>
         </div>
       </div>
@@ -398,7 +398,7 @@ function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-3xl font-black">{invoices.length}</div>
+              <div className="text-3xl font-black translate-no notranslate" translate="no">{invoices.length}</div>
               <div className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Total Docs</div>
             </div>
           </div>
@@ -555,11 +555,11 @@ function History() {
           <div className="grid grid-cols-2 gap-3 w-full">
             <div className="bg-emerald-600 text-white p-3 sm:p-4 rounded-2xl shadow-lg shadow-emerald-100 flex flex-col justify-center">
               <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Facturado</span>
-              <span className="text-sm sm:text-xl font-black truncate">$ {totalInvoices.toLocaleString('es-CO')}</span>
+              <span className="text-sm sm:text-xl font-black truncate translate-no notranslate" translate="no">$ {totalInvoices.toLocaleString('es-CO')}</span>
             </div>
             <div className="bg-blue-600 text-white p-3 sm:p-4 rounded-2xl shadow-lg shadow-blue-100 flex flex-col justify-center">
               <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Cuentas Cobro</span>
-              <span className="text-sm sm:text-xl font-black truncate">$ {totalPayments.toLocaleString('es-CO')}</span>
+              <span className="text-sm sm:text-xl font-black truncate translate-no notranslate" translate="no">$ {totalPayments.toLocaleString('es-CO')}</span>
             </div>
           </div>
         </div>
@@ -634,7 +634,7 @@ function History() {
                 </div>
               </div>
               <h4 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{inv.client_name || 'Sin Cliente'}</h4>
-              <p className="text-sm text-gray-500 mb-6 font-mono">$ {Number(inv.total || inv.data?.grandTotal || 0).toLocaleString('es-CO')}</p>
+              <p className="text-sm text-gray-500 mb-6 font-mono translate-no notranslate" translate="no">$ {Number(inv.total || inv.data?.grandTotal || 0).toLocaleString('es-CO')}</p>
 
               <div className="flex gap-2">
                 <button

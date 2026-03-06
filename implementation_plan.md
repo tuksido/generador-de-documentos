@@ -41,3 +41,4 @@ The user reported that totals appear as 0 on mobile. This is likely due to the `
 ### Proposed Changes
 - **server.ts**: Add migration to populate `total` column from `data.grandTotal` for existing records.
 - **App.tsx**: Update History and Dashboard components to use `inv.total || inv.data?.grandTotal || 0` for calculations.
+- **[NEW] Translator Fix**: Add `translate="no"` and class `notranslate` to all elements displaying currency or totals in `App.tsx` and `InvoiceTemplate.tsx`.

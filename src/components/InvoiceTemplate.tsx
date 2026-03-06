@@ -19,7 +19,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
   ({ data, logo, signature, paperSize, preview = true, type = 'payment_account' }, ref) => {
     const isInvoice = type === 'invoice';
     const title = isInvoice ? 'Factura de Venta' : 'Cuenta de Cobro';
-    
+
     // Labels based on document type
     const detailLabel = 'Paciente';
     const procedureLabel = 'Descripción';
@@ -107,7 +107,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                     <div className="uppercase tracking-wider text-[#9ca3af] font-bold mb-0.5 border-b border-[#f3f4f6] pb-0.5">Ciudad y Fecha</div>
                     <div className="font-medium">{data.city || 'BOGOTÁ'}, {data.date || 'DD/MM/AAAA'}</div>
                   </div>
-                  
+
                   <div>
                     <div className="uppercase tracking-wider text-[#9ca3af] font-bold mb-0.5 border-b border-[#f3f4f6] pb-0.5">Empresa Adquirente</div>
                     <div className="font-bold text-sm text-[#111827]">{data.acquiringCompany || 'Nombre de la Empresa'}</div>
@@ -118,8 +118,8 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                 </div>
 
                 <div className="space-y-3">
-                   <div className="h-6"></div>
-                   <div>
+                  <div className="h-6"></div>
+                  <div>
                     <div className="uppercase tracking-wider text-[#9ca3af] font-bold mb-0.5 border-b border-[#f3f4f6] pb-0.5">Prestador de Servicio</div>
                     <div className="font-bold text-sm text-[#111827]">{data.serviceProvider || 'Tu Nombre'}</div>
                     <div className="text-[#4b5563]">NIT/CC: {data.serviceProviderNit || '---'}</div>
@@ -165,12 +165,12 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                     // Global index for color consistency
                     const globalIndex = isFirstPage ? index : itemsPerPageFirst + (pageIndex - 1) * itemsPerPageOthers + index;
                     const rowColor = colors[globalIndex % colors.length];
-                    
+
                     return (
                       <tr key={index} className={cn("border-b border-[#f3f4f6]", rowColor)}>
                         <td className="py-3 px-4 text-[#1f2937] font-medium">{item.patient}</td>
                         <td className="py-3 px-4 text-[#4b5563] italic">{item.procedure}</td>
-                        <td className="py-3 px-4 text-right font-bold">$ {Number(item.total).toLocaleString('es-CO')}</td>
+                        <td className="py-3 px-4 text-right font-bold translate-no notranslate" translate="no">$ {Number(item.total).toLocaleString('es-CO')}</td>
                       </tr>
                     );
                   })
@@ -192,17 +192,17 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                     <>
                       <div className="flex justify-between items-center py-2 px-6 border-b border-[#f3f4f6]">
                         <span className="text-[10px] uppercase tracking-widest font-bold text-[#6b7280]">Abono</span>
-                        <span className="text-sm font-bold text-[#111827]">$ {Number(data.deposit || 0).toLocaleString('es-CO')}</span>
+                        <span className="text-sm font-bold text-[#111827] translate-no notranslate" translate="no">$ {Number(data.deposit || 0).toLocaleString('es-CO')}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-6 border-b border-[#f3f4f6]">
                         <span className="text-[10px] uppercase tracking-widest font-bold text-[#6b7280]">Saldo</span>
-                        <span className="text-sm font-bold text-[#ef4444]">$ {Number(data.balance || 0).toLocaleString('es-CO')}</span>
+                        <span className="text-sm font-bold text-[#ef4444] translate-no notranslate" translate="no">$ {Number(data.balance || 0).toLocaleString('es-CO')}</span>
                       </div>
                     </>
                   )}
                   <div className="flex justify-between items-center py-4 px-6 bg-[#eff6ff] rounded-sm border border-[#dbeafe]">
                     <span className="text-[10px] uppercase tracking-widest font-black text-[#1e3a8a]">Total a Pagar</span>
-                    <span className="text-xl font-black text-[#2563eb]">$ {Number(data.grandTotal || 0).toLocaleString('es-CO')}</span>
+                    <span className="text-xl font-black text-[#2563eb] translate-no notranslate" translate="no">$ {Number(data.grandTotal || 0).toLocaleString('es-CO')}</span>
                   </div>
                 </div>
               </div>
@@ -244,8 +244,8 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
     };
 
     return (
-      <div 
-        ref={ref} 
+      <div
+        ref={ref}
         className={cn(
           "flex flex-col items-center",
           preview ? "scale-[0.5] xs:scale-[0.6] sm:scale-[0.75] md:scale-[0.85] lg:scale-100 origin-top" : ""
