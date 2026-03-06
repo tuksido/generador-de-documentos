@@ -91,6 +91,24 @@ try {
     db.prepare("UPDATE clients SET user_id = ? WHERE user_id IS NULL").run(firstUser.id);
     db.prepare("UPDATE invoices SET user_id = ? WHERE user_id IS NULL").run(firstUser.id);
   }
+  const rowsToFix = db.prepare("SELECT id, data FROM invoices WHERE total IS NULL OR total = 0").all();
+  if (rowsToFix.length > 0) {
+    const updateStmt = db.prepare("UPDATE invoices SET total = ? WHERE id = ?");
+    const transaction = db.transaction((rows) => {
+      for (const row of rows) {
+        try {
+          const data = JSON.parse(row.data);
+          const grandTotal = Number(data.grandTotal || 0);
+          if (grandTotal > 0) {
+            updateStmt.run(grandTotal, row.id);
+          }
+        } catch (e) {
+        }
+      }
+    });
+    transaction(rowsToFix);
+    console.log(`[DB] Migrated totals for ${rowsToFix.length} invoices`);
+  }
 } catch (e) {
   console.error("[DB] Migration error:", e);
 }

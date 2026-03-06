@@ -33,3 +33,11 @@ The user provided a functional version of the application in `C:\Users\HP\Downlo
 - Verify login/signup flow.
 - Verify invoice creation and real-time preview (feature from functional version).
 - Verify document saving and history retrieval.
+- **[NEW] Verify totals in History and Dashboard on mobile view (fallback logic).**
+
+## Bug Fix: Mobile Totals as 0
+The user reported that totals appear as 0 on mobile. This is likely due to the `total` column being NULL for some records and the frontend lacking a fallback to the JSON data.
+
+### Proposed Changes
+- **server.ts**: Add migration to populate `total` column from `data.grandTotal` for existing records.
+- **App.tsx**: Update History and Dashboard components to use `inv.total || inv.data?.grandTotal || 0` for calculations.
