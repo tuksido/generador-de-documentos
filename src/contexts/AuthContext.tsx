@@ -22,8 +22,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/v1/auth/me')
-      .then(res => res.json())
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) return { user: null };
+        return res.json();
+      })
       .then(data => {
         setUser(data.user);
         setLoading(false);
@@ -32,51 +35,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/v1/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'include'
     });
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}: Login failed`);
-      setUser(data.user);
-    } else {
-      const text = await res.text();
-      const statusText = text.trim() || `(Sin cuerpo de respuesta - Status: ${res.status})`;
-      throw new Error(`Error ${res.status}: ${statusText.substring(0, 100)}`);
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    setUser(data.user);
   };
 
   const signup = async (email: string, password: string) => {
-    const res = await fetch('/signup_prod', {
+    const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'include'
     });
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}: Signup failed`);
-      setUser(data.user);
-    } else {
-      const text = await res.text();
-      const statusText = text.trim() || `(Sin cuerpo de respuesta - Status: ${res.status})`;
-      throw new Error(`Error ${res.status}: ${statusText.substring(0, 100)}`);
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    setUser(data.user);
   };
 
   const logout = async () => {
-    await fetch('/v1/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {
+      console.error('Logout fetch failed', e);
+    }
     setUser(null);
   };
 
   const forgotPassword = async (email: string) => {
-    const res = await fetch('/v1/auth/forgot-password', {
+    const res = await fetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
+      credentials: 'include'
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send reset link');
@@ -84,10 +80,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (token: string, newPassword: string) => {
-    const res = await fetch('/v1/auth/reset-password', {
+    const res = await fetch('/api/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword }),
+      credentials: 'include'
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to reset password');
