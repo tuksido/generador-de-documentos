@@ -93,8 +93,8 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
             </div>
             <div className="w-1/2 text-right">
               <h1 className="text-xl font-light tracking-[0.15em] uppercase text-[#9ca3af] mb-0 whitespace-nowrap">{title}</h1>
-              <div className="text-xl font-bold text-[#2563eb]">No. {data.invoiceNumber || '0000'}</div>
-              <div className="text-[9px] text-gray-400 mt-1 uppercase tracking-widest">Página {pageIndex + 1} de {totalPages}</div>
+              <div style={{ color: '#2563eb' }} className="text-xl font-bold">No. {data.invoiceNumber || '0000'}</div>
+              <div style={{ color: '#9ca3af' }} className="text-[9px] uppercase tracking-widest mt-1">Página {pageIndex + 1} de {totalPages}</div>
             </div>
           </div>
 
@@ -145,7 +145,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
           <div className="w-full mb-4">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-[#2563eb] text-white text-[10px] uppercase tracking-widest">
+                <tr style={{ backgroundColor: '#2563eb', color: '#ffffff' }} className="text-[10px] uppercase tracking-widest">
                   <th className="py-3 px-4 text-left font-bold border-none">{detailLabel}</th>
                   <th className="py-3 px-4 text-left font-bold border-none">{procedureLabel}</th>
                   <th className="py-3 px-4 text-right font-bold border-none">Valor Total</th>
@@ -155,19 +155,19 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                 {pageItems.length > 0 ? (
                   pageItems.map((item: any, index: number) => {
                     const colors = [
-                      'bg-white',
-                      'bg-blue-50/30',
-                      'bg-emerald-50/30',
-                      'bg-violet-50/30',
-                      'bg-amber-50/30',
-                      'bg-rose-50/30'
+                      '#ffffff',
+                      '#f0f7ff', // blue-50/30 approx
+                      '#ecfdf5', // emerald-50/30 approx
+                      '#f5f3ff', // violet-50/30 approx
+                      '#fffbeb', // amber-50/30 approx
+                      '#fff1f2'  // rose-50/30 approx
                     ];
                     // Global index for color consistency
                     const globalIndex = isFirstPage ? index : itemsPerPageFirst + (pageIndex - 1) * itemsPerPageOthers + index;
                     const rowColor = colors[globalIndex % colors.length];
 
                     return (
-                      <tr key={index} className={cn("border-b border-[#f3f4f6]", rowColor)}>
+                      <tr key={index} style={{ backgroundColor: rowColor, borderBottom: '1px solid #f3f4f6' }}>
                         <td className="py-3 px-4 text-[#1f2937] font-medium">{item.patient}</td>
                         <td className="py-3 px-4 text-[#4b5563] italic">{item.procedure}</td>
                         <td className="py-3 px-4 text-right font-bold translate-no notranslate" translate="no">$ {Number(item.total).toLocaleString('es-CO')}</td>
@@ -200,9 +200,9 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                       </div>
                     </>
                   )}
-                  <div className="flex justify-between items-center py-4 px-6 bg-[#eff6ff] rounded-sm border border-[#dbeafe]">
-                    <span className="text-[10px] uppercase tracking-widest font-black text-[#1e3a8a]">Total a Pagar</span>
-                    <span className="text-xl font-black text-[#2563eb] translate-no notranslate" translate="no">$ {Number(data.grandTotal || 0).toLocaleString('es-CO')}</span>
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #dbeafe' }} className="flex justify-between items-center py-4 px-6 rounded-sm">
+                    <span style={{ color: '#1e3a8a' }} className="text-[10px] uppercase tracking-widest font-black">Total a Pagar</span>
+                    <span style={{ color: '#2563eb' }} className="text-xl font-black translate-no notranslate" translate="no">$ {Number(data.grandTotal || 0).toLocaleString('es-CO')}</span>
                   </div>
                 </div>
               </div>

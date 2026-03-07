@@ -2,19 +2,19 @@
 
 The user provided a functional version of the application in `C:\Users\HP\Downloads\document`. I will use this as the new base for the project, ensuring all features are preserved while maintaining the deployment configuration necessary for Railway.
 
-## Bug Fix: Export, Print, and Profile Save
-The user reports:
-1. PDF export still fails (no download).
-2. Printing results in a blank page.
+## Bug Fix: PDF "oklch" Color Error
+The user reports: `Error al generar el PDF: Attempting to parse an unsupported color function "oklch"`.
+This is caused by Tailwind CSS v4 using modern `oklch` colors which `html2canvas` cannot parse.
 
 ### Proposed Changes
 - **src/index.css**:
-  - Replace the global `body * { display: none }` with a targeted list of UI elements to hide during print (`nav`, `button`, `aside`, etc.).
-  - Ensure `.print-container` and its parents are NOT hidden and occupy the full viewport.
-  - Reset `max-height` and `overflow` on parents during print to prevent content cropping.
-- **App.tsx**:
-  - **PDF Fix**: Add `logging: true` to `html2canvas` for debugging and use a more standard `windowWidth`. Ensure `jsPDF` uses `blob` and `URL.createObjectURL` as a fallback if `save()` fails on some mobile browsers.
-  - **Print Fix**: Ensure `window.print()` is called after a short timeout if necessary, though direct call is usually fine.
+  - Replace `@import "tailwindcss";` with a safer configuration or override the base colors to use RGB/HEX.
+  - Specifically, set `--color-blue-500` and other used colors to HEX equivalents at the top level or inside `@media print`.
+- **src/components/InvoiceTemplate.tsx**:
+  - Replace any dynamic Tailwind classes that might rely on `oklch` with hardcoded HEX/RGB values in the `style` attribute for the elements inside the invoice pages.
+  - This ensures `html2canvas` sees simple, parsable colors.
+- **src/App.tsx**:
+  - Ensure the `onclone` hook in `exportPDF` also forces standard colors if needed.
 
 ## Verification Plan
 
