@@ -1298,7 +1298,7 @@ function SettingsPage() {
               </div>
             </div>
           ))}
-          {profiles.length === 0 && (
+          {(!profiles || (Array.isArray(profiles) && profiles.length === 0)) && (
             <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
               <p className="text-gray-400 font-medium">No hay perfiles creados.</p>
             </div>
@@ -1567,11 +1567,16 @@ function CreateInvoice() {
           backgroundColor: '#ffffff',
           windowWidth: document.documentElement.offsetWidth,
           onclone: (clonedDoc) => {
-            const clonedPage = clonedDoc.querySelector('.invoice-page') as HTMLElement;
-            if (clonedPage) {
-              clonedPage.style.transform = 'none';
-              clonedPage.style.scale = '1';
-            }
+            const clonedPages = clonedDoc.querySelectorAll('.invoice-page');
+            clonedPages.forEach((clonedPage) => {
+              const pg = clonedPage as HTMLElement;
+              pg.style.transform = 'none';
+              pg.style.scale = '1';
+              pg.style.position = 'relative';
+              pg.style.top = 'auto';
+              pg.style.left = 'auto';
+              pg.style.margin = '0 auto';
+            });
           }
         });
 
@@ -1945,7 +1950,7 @@ function CreateInvoice() {
         </div>
 
         {/* The Actual Template */}
-        <div className="relative">
+        <div className="relative print-container">
           <InvoiceTemplate
             ref={templateRef}
             data={invoiceData}

@@ -2,19 +2,22 @@
 
 The user provided a functional version of the application in `C:\Users\HP\Downloads\document`. I will use this as the new base for the project, ensuring all features are preserved while maintaining the deployment configuration necessary for Railway.
 
-## Bug Fix: Export and Print Functionality
-The user reports that PDF export, printing, and Excel exports are not working.
+## Bug Fix: Export, Print, and Profile Save
+The user reports:
+1. PDF export still fails.
+2. Saving profile results in a blank page.
+3. Printing results in a blank page.
 
 ### Proposed Changes
 - **src/index.css**:
-  - Update `@media print` to include all preview scale classes (`scale-[0.5]`, `scale-[0.75]`, etc.) to ensure the invoice prints at 1:1 scale.
-  - Fix the `visibility: hidden` logic to ensure only the invoice is printed and no empty pages are generated from hidden layout elements.
+  - Abandon `visibility: hidden` strategy for printing.
+  - Use `display: none !important` for all non-essential UI elements (`nav`, `button`, `aside`, `.no-print`, sidebar).
+  - Ensure the main content area expands to fill the page.
 - **App.tsx**:
-  - **PDF Fix**: Update `exportPDF` to handle capturing multiple pages more reliably. Ensure `html2canvas` captures at a high enough resolution and ignores the preview scaling transforms.
-  - **Excel Fix**: Update `History` component's `exportToExcel` to use the fallback `inv.total || inv.data?.grandTotal || 0`.
-  - **Print Fix**: Add a specific `print-only` container or ensure the current logic doesn't hide essential content.
-- **InvoiceTemplate.tsx**:
-  - Add a helper class to handle 1:1 scale during export/print.
+  - **PDF Fix**: Update `exportPDF` to loop through all `.invoice-page` elements in the cloned document to remove transforms from all pages, not just the first one.
+  - **Profile Fix**: Add safety checks for `profiles` in `SettingsPage` (e.g., `profiles?.length === 0`) and ensure `fetchProfiles` initializes state correctly.
+  - **Profile Fix**: Ensure `setEditingProfile(null)` doesn't trigger a re-render that crashes if `profiles` is pending.
+  - **Print Fix**: Add a `print-container` class to the invoice wrapper to ensure it's targeted correctly.
 
 ## Verification Plan
 
@@ -23,9 +26,9 @@ The user reports that PDF export, printing, and Excel exports are not working.
 - Push to GitHub and monitor Railway deployment logs.
 
 ### Manual Verification
-- Verify successful Excel export from History and Clients.
-- Verify PDF generation on both desktop and mobile views.
-- Verify print layout (no sidebar/buttons visible, correct scaling).
+- Save a profile and verify the page returns to the list without going blank.
+- Export a multi-page PDF and verify all pages are correctly scaled.
+- Print the invoice and verify it shows the content instead of a blank page.
 - **[NEW] Verify totals in History and Dashboard on mobile view (fallback logic).**
 
 ## Bug Fix: Mobile Totals as 0
