@@ -8,54 +8,59 @@
 
 @media print {
 
-  /* Simplified print strategy: Hide non-essential UI, show the rest */
-  .no-print,
-  nav,
-  aside,
-  button,
-  .lg\:w-\[450px\],
-  .sticky {
+  /* Hide EVERYTHING by default, we will specifically show what we need */
+  body * {
     display: none !important;
   }
 
-  body {
-    background: white !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  .flex-grow {
-    padding: 0 !important;
-    margin: 0 !important;
+  /* Show only the invoice container and its children */
+  .print-container,
+  .print-container *,
+  .invoice-page,
+  .invoice-page * {
     display: block !important;
+    visibility: visible !important;
   }
 
-  /* Target the print container specifically if needed */
   .print-container {
-    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: white !important;
   }
 
   .invoice-page {
     position: relative !important;
     margin: 0 auto !important;
+    padding: 0.6in 0.8in !important;
     box-shadow: none !important;
-    page-break-after: always;
-    break-after: page;
+    page-break-after: always !important;
+    break-after: page !important;
     transform: none !important;
     scale: 1 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 8.5in !important;
+    /* Force Standard Letter Width */
+    background: white !important;
+    border: none !important;
   }
 
-  /* CRITICAL: Disable all preview scales during print */
-  .scale-\[0\.5\],
-  .xs\:scale-\[0\.6\],
-  .sm\:scale-\[0\.75\],
-  .md\:scale-\[0\.85\],
-  .lg\:scale-100 {
-    transform: none !important;
-    scale: 1 !important;
+  /* Reset all background colors to white and text to black for best print */
+  body,
+  html {
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Force hidden for UI elements even if they are inside the container somehow */
+  .no-print {
+    display: none !important;
   }
 }
 

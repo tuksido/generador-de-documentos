@@ -1558,14 +1558,28 @@ function CreateInvoice() {
         format: 'letter'
       });
 
+      // Helper to wait for images
+      const waitImages = async (el: HTMLElement) => {
+        const imgs = Array.from(el.querySelectorAll('img'));
+        await Promise.all(imgs.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        }));
+      };
+
+      await waitImages(element);
+
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
         const canvas = await html2canvas(page, {
-          scale: 3,
+          scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
-          windowWidth: document.documentElement.offsetWidth,
+          windowWidth: 1024, // Use a stable width
           onclone: (clonedDoc) => {
             const clonedPages = clonedDoc.querySelectorAll('.invoice-page');
             clonedPages.forEach((clonedPage) => {
@@ -1573,16 +1587,18 @@ function CreateInvoice() {
               pg.style.transform = 'none';
               pg.style.scale = '1';
               pg.style.position = 'relative';
-              pg.style.top = 'auto';
-              pg.style.left = 'auto';
+              pg.style.top = '0';
+              pg.style.left = '0';
               pg.style.margin = '0 auto';
+              pg.style.visibility = 'visible';
+              pg.style.display = 'block';
             });
           }
         });
 
-        const imgData = canvas.toDataURL('image/png', 1.0);
+        const imgData = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG for better performance
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, 8.5, 11, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
       }
 
       pdf.save(`${docType === 'invoice' ? 'Factura' : 'Cuenta_Cobro'}_${invoiceData.invoiceNumber || 'doc'}.pdf`);
