@@ -532,7 +532,7 @@ function History() {
       'Fecha': new Date(inv.created_at).toLocaleDateString(),
       'Cliente': inv.client_name,
       'NIT': inv.data?.acquiringCompanyNit || '',
-      'Total': inv.total,
+      'Total': inv.total || inv.data?.grandTotal || 0,
       'Saldo': inv.data?.balance || 0,
       'Tipo': inv.type === 'invoice' ? 'Factura' : 'Cuenta de Cobro'
     }));
@@ -1561,16 +1561,23 @@ function CreateInvoice() {
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
         const canvas = await html2canvas(page, {
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
-          windowWidth: 1200
+          windowWidth: document.documentElement.offsetWidth,
+          onclone: (clonedDoc) => {
+            const clonedPage = clonedDoc.querySelector('.invoice-page') as HTMLElement;
+            if (clonedPage) {
+              clonedPage.style.transform = 'none';
+              clonedPage.style.scale = '1';
+            }
+          }
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/png', 1.0);
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, 8.5, 11);
+        pdf.addImage(imgData, 'PNG', 0, 0, 8.5, 11, undefined, 'FAST');
       }
 
       pdf.save(`${docType === 'invoice' ? 'Factura' : 'Cuenta_Cobro'}_${invoiceData.invoiceNumber || 'doc'}.pdf`);
@@ -1902,7 +1909,7 @@ function CreateInvoice() {
         "flex-grow bg-[#e9ecef] overflow-y-auto p-4 sm:p-8 md:p-12 flex flex-col items-center relative",
         !showPreviewMobile ? "hidden lg:flex" : "flex"
       )}>
-        <div className="sticky top-0 z-20 w-full flex justify-center mb-8 pointer-events-none">
+        <div className="sticky top-0 z-20 w-full flex justify-center mb-8 pointer-events-none no-print">
           <div className="bg-white/80 backdrop-blur-md px-4 sm:px-6 py-2 sm:py-3 rounded-2xl shadow-xl border border-white flex flex-wrap justify-center gap-2 sm:gap-3 pointer-events-auto">
             <button
               onClick={() => window.print()}

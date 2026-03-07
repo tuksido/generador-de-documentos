@@ -2,26 +2,19 @@
 
 The user provided a functional version of the application in `C:\Users\HP\Downloads\document`. I will use this as the new base for the project, ensuring all features are preserved while maintaining the deployment configuration necessary for Railway.
 
-## Proposed Changes
+## Bug Fix: Export and Print Functionality
+The user reports that PDF export, printing, and Excel exports are not working.
 
-### [Backend]
-#### [MODIFY] [server.ts](file:///c:/Users/HP/Downloads/generaddor de facturas/server.ts)
-- Replace with the functional version's logic.
-- **Maintain Railway Fixes**:
-  - Bind to `0.0.0.0`.
-  - Use `process.env.PORT`.
-  - Use synchronous static file serving for reliability.
-  - Fix path resolution for `dist`.
-
-### [Frontend]
-#### [MODIFY] [src/](file:///c:/Users/HP/Downloads/generaddor de facturas/src/)
-- Replace all files in `src/` with the versions from `C:\Users\HP\Downloads\document\src/`.
-- Ensure all API calls use the new `/api` prefix and `credentials: 'include'`.
-
-### [Configuration]
-#### [MODIFY] [package.json](file:///c:/Users/HP/Downloads/generaddor de facturas/package.json)
-- Sync dependencies with the functional version.
-- Keep the `esbuild` build script for production performance.
+### Proposed Changes
+- **src/index.css**:
+  - Update `@media print` to include all preview scale classes (`scale-[0.5]`, `scale-[0.75]`, etc.) to ensure the invoice prints at 1:1 scale.
+  - Fix the `visibility: hidden` logic to ensure only the invoice is printed and no empty pages are generated from hidden layout elements.
+- **App.tsx**:
+  - **PDF Fix**: Update `exportPDF` to handle capturing multiple pages more reliably. Ensure `html2canvas` captures at a high enough resolution and ignores the preview scaling transforms.
+  - **Excel Fix**: Update `History` component's `exportToExcel` to use the fallback `inv.total || inv.data?.grandTotal || 0`.
+  - **Print Fix**: Add a specific `print-only` container or ensure the current logic doesn't hide essential content.
+- **InvoiceTemplate.tsx**:
+  - Add a helper class to handle 1:1 scale during export/print.
 
 ## Verification Plan
 
@@ -30,9 +23,9 @@ The user provided a functional version of the application in `C:\Users\HP\Downlo
 - Push to GitHub and monitor Railway deployment logs.
 
 ### Manual Verification
-- Verify login/signup flow.
-- Verify invoice creation and real-time preview (feature from functional version).
-- Verify document saving and history retrieval.
+- Verify successful Excel export from History and Clients.
+- Verify PDF generation on both desktop and mobile views.
+- Verify print layout (no sidebar/buttons visible, correct scaling).
 - **[NEW] Verify totals in History and Dashboard on mobile view (fallback logic).**
 
 ## Bug Fix: Mobile Totals as 0
