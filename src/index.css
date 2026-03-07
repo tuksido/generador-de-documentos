@@ -8,28 +8,48 @@
 
 @media print {
 
-  /* Hide EVERYTHING by default, we will specifically show what we need */
-  body * {
-    display: none !important;
-  }
-
-  /* Show only the invoice container and its children */
-  .print-container,
-  .print-container *,
-  .invoice-page,
-  .invoice-page * {
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  .print-container {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
+  /* Reset layout constraints for printing */
+  html,
+  body,
+  #root,
+  .flex-grow {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    display: block !important;
+  }
+
+  /* Hide UI elements specifically */
+  nav,
+  aside,
+  footer,
+  button,
+  .no-print,
+  .lg\:w-\[450px\],
+  .sticky,
+  .lg\:block {
+    display: none !important;
+  }
+
+  /* Ensure the preview container and invoice are visible and centered */
+  .flex-grow.bg-\[\#e9ecef\],
+  .print-container {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-container {
+    z-index: 10 !important;
   }
 
   .invoice-page {
@@ -41,26 +61,16 @@
     break-after: page !important;
     transform: none !important;
     scale: 1 !important;
-    min-height: auto !important;
-    height: auto !important;
     width: 8.5in !important;
-    /* Force Standard Letter Width */
     background: white !important;
     border: none !important;
   }
 
-  /* Reset all background colors to white and text to black for best print */
-  body,
-  html {
-    background: white !important;
-    color: black !important;
-    width: 100% !important;
-    height: auto !important;
-  }
-
-  /* Force hidden for UI elements even if they are inside the container somehow */
-  .no-print {
-    display: none !important;
+  /* Force all parents of the invoice to be visible */
+  .lg\:flex,
+  .flex-col,
+  .lg\:flex-row {
+    display: block !important;
   }
 }
 

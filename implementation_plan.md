@@ -4,20 +4,17 @@ The user provided a functional version of the application in `C:\Users\HP\Downlo
 
 ## Bug Fix: Export, Print, and Profile Save
 The user reports:
-1. PDF export still fails.
-2. Saving profile results in a blank page.
-3. Printing results in a blank page.
+1. PDF export still fails (no download).
+2. Printing results in a blank page.
 
 ### Proposed Changes
 - **src/index.css**:
-  - Abandon `visibility: hidden` strategy for printing.
-  - Use `display: none !important` for all non-essential UI elements (`nav`, `button`, `aside`, `.no-print`, sidebar).
-  - Ensure the main content area expands to fill the page.
+  - Replace the global `body * { display: none }` with a targeted list of UI elements to hide during print (`nav`, `button`, `aside`, etc.).
+  - Ensure `.print-container` and its parents are NOT hidden and occupy the full viewport.
+  - Reset `max-height` and `overflow` on parents during print to prevent content cropping.
 - **App.tsx**:
-  - **PDF Fix**: Update `exportPDF` to loop through all `.invoice-page` elements in the cloned document to remove transforms from all pages, not just the first one.
-  - **Profile Fix**: Add safety checks for `profiles` in `SettingsPage` (e.g., `profiles?.length === 0`) and ensure `fetchProfiles` initializes state correctly.
-  - **Profile Fix**: Ensure `setEditingProfile(null)` doesn't trigger a re-render that crashes if `profiles` is pending.
-  - **Print Fix**: Add a `print-container` class to the invoice wrapper to ensure it's targeted correctly.
+  - **PDF Fix**: Add `logging: true` to `html2canvas` for debugging and use a more standard `windowWidth`. Ensure `jsPDF` uses `blob` and `URL.createObjectURL` as a fallback if `save()` fails on some mobile browsers.
+  - **Print Fix**: Ensure `window.print()` is called after a short timeout if necessary, though direct call is usually fine.
 
 ## Verification Plan
 

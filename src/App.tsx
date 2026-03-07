@@ -1577,9 +1577,9 @@ function CreateInvoice() {
         const canvas = await html2canvas(page, {
           scale: 2,
           useCORS: true,
-          logging: false,
+          logging: true, // Enable logging to help find errors
           backgroundColor: '#ffffff',
-          windowWidth: 1024, // Use a stable width
+          windowWidth: 1024,
           onclone: (clonedDoc) => {
             const clonedPages = clonedDoc.querySelectorAll('.invoice-page');
             clonedPages.forEach((clonedPage) => {
@@ -1596,14 +1596,29 @@ function CreateInvoice() {
           }
         });
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG for better performance
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
       }
 
-      pdf.save(`${docType === 'invoice' ? 'Factura' : 'Cuenta_Cobro'}_${invoiceData.invoiceNumber || 'doc'}.pdf`);
-    } catch (err) {
+      const fileName = `${docType === 'invoice' ? 'Factura' : 'Cuenta_Cobro'}_${invoiceData.invoiceNumber || 'doc'}.pdf`;
+
+      try {
+        pdf.save(fileName);
+      } catch (saveErr) {
+        console.warn('Standard save failed, trying fallback...', saveErr);
+        // Fallback for some mobile browsers
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      }
+    } catch (err: any) {
       console.error('Error exporting PDF:', err);
+      alert('Error al generar el PDF: ' + (err.message || 'Error desconocido'));
     } finally {
       setIsExporting(false);
     }
