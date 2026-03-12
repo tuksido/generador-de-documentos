@@ -1146,7 +1146,7 @@ function SettingsPage() {
         </div>
         {!editingProfile && (
           <button
-            onClick={() => setEditingProfile({ provider_name: '', provider_nit: '', provider_address: '', provider_phone: '', logo: '', signature: '', is_default: profiles.length === 0 ? 1 : 0 })}
+            onClick={() => setEditingProfile({ provider_name: '', provider_nit: '', provider_address: '', provider_phone: '', footer_text: '', logo: '', signature: '', is_default: profiles.length === 0 ? 1 : 0 })}
             className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
           >
             <Plus className="w-4 h-4" /> Nuevo Perfil
@@ -1196,6 +1196,15 @@ function SettingsPage() {
                   placeholder="Teléfono"
                   value={editingProfile.provider_phone || ''}
                   onChange={e => setEditingProfile({ ...editingProfile, provider_phone: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500">Pie de Página (opcional)</label>
+                <input
+                  placeholder="Ej: medio de pago Bre-b 3016876201"
+                  value={editingProfile.footer_text || ''}
+                  onChange={e => setEditingProfile({ ...editingProfile, footer_text: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1315,6 +1324,7 @@ function CreateInvoice() {
   const [docType, setDocType] = useState<'payment_account' | 'invoice'>('payment_account');
   const [logo, setLogo] = useState<string | undefined>(undefined);
   const [signature, setSignature] = useState<string | undefined>(undefined);
+  const [footerText, setFooterText] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewMobile, setShowPreviewMobile] = useState(false);
@@ -1403,6 +1413,7 @@ function CreateInvoice() {
         }));
         setLogo(defaultProfile.logo);
         setSignature(defaultProfile.signature);
+        setFooterText(defaultProfile.footer_text || '');
       }
 
       // Fetch next consecutive number
@@ -1432,6 +1443,7 @@ function CreateInvoice() {
       }));
       setLogo(profile.logo);
       setSignature(profile.signature);
+      setFooterText(profile.footer_text || '');
     }
   };
 
@@ -1990,6 +2002,7 @@ function CreateInvoice() {
             paperSize={paperSize}
             preview={true}
             type={docType}
+            footerText={footerText}
           />
         </div>
       </div>

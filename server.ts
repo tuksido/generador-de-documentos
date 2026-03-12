@@ -63,6 +63,7 @@ const initDb = async () => {
         provider_nit TEXT,
         provider_address TEXT,
         provider_phone TEXT,
+        footer_text TEXT,
         CONSTRAINT fk_user_settings FOREIGN KEY(user_id) REFERENCES users(id)
       );
 
@@ -86,7 +87,13 @@ const initDb = async () => {
   }
 };
 
-initDb();
+initDb().then(async () => {
+  // Migration: add footer_text column if missing (for existing databases)
+  try {
+    await pool.query("ALTER TABLE settings ADD COLUMN IF NOT EXISTS footer_text TEXT");
+    console.log('[DB] Migration: footer_text column ensured');
+  } catch (e) { /* column already exists */ }
+});
 
 const app = express();
 app.set('trust proxy', true);
@@ -207,7 +214,7 @@ app.get("/api/settings", authenticateToken, asyncHandler(async (req: any, res: a
 }));
 
 app.post("/api/settings", authenticateToken, asyncHandler(async (req: any, res: any) => {
-  const { id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default } = req.body;
+  const { id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, footer_text, is_default } = req.body;
 
   const client = await pool.connect();
   try {
@@ -219,15 +226,15 @@ app.post("/api/settings", authenticateToken, asyncHandler(async (req: any, res: 
 
     if (id) {
       await client.query(
-        `UPDATE settings SET logo=$1, signature=$2, provider_name=$3, provider_nit=$4, provider_address=$5, provider_phone=$6, is_default=$7 WHERE id=$8 AND user_id=$9`,
-        [logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default ? 1 : 0, id, req.user.id]
+        `UPDATE settings SET logo=$1, signature=$2, provider_name=$3, provider_nit=$4, provider_address=$5, provider_phone=$6, footer_text=$7, is_default=$8 WHERE id=$9 AND user_id=$10`,
+        [logo, signature, provider_name, provider_nit, provider_address, provider_phone, footer_text || '', is_default ? 1 : 0, id, req.user.id]
       );
       await client.query('COMMIT');
       res.json({ id });
     } else {
       const result = await client.query(
-        `INSERT INTO settings (user_id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [req.user.id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, is_default ? 1 : 0]
+        `INSERT INTO settings (user_id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, footer_text, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [req.user.id, logo, signature, provider_name, provider_nit, provider_address, provider_phone, footer_text || '', is_default ? 1 : 0]
       );
       await client.query('COMMIT');
       res.json({ id: result.rows[0].id });

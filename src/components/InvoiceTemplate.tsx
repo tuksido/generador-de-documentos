@@ -13,10 +13,11 @@ interface InvoiceTemplateProps {
   paperSize: 'letter' | 'a4' | 'legal';
   preview?: boolean;
   type?: 'payment_account' | 'invoice';
+  footerText?: string;
 }
 
 const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
-  ({ data, logo, signature, paperSize, preview = true, type = 'payment_account' }, ref) => {
+  ({ data, logo, signature, paperSize, preview = true, type = 'payment_account', footerText }, ref) => {
     const isInvoice = type === 'invoice';
     const title = isInvoice ? 'Factura de Venta' : 'Cuenta de Cobro';
 
@@ -240,10 +241,12 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
             </>
           )}
 
-          {/* Footer - appears on every page */}
-          <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
-            <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em' }}>medio de pago Bre-b 3016876201</span>
-          </div>
+          {/* Footer - appears on every page if text is provided */}
+          {footerText && (
+            <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
+              <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em' }}>{footerText}</span>
+            </div>
+          )}
         </div>
       );
     };
