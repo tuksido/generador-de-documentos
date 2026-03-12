@@ -151,7 +151,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                   <th className="py-3 px-4 text-right font-bold border-none">Valor Total</th>
                 </tr>
               </thead>
-              <tbody className="text-[11px]">
+              <tbody className="text-[13px]">
                 {pageItems.length > 0 ? (
                   pageItems.map((item: any, index: number) => {
                     const colors = [
@@ -239,6 +239,11 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
               </div>
             </>
           )}
+
+          {/* Footer - appears on every page */}
+          <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
+            <span style={{ fontSize: '10px', color: '#6b7280', letterSpacing: '0.05em' }}>medio de pago Bre-b 3016876201</span>
+          </div>
         </div>
       );
     };
