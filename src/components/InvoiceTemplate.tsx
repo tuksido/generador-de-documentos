@@ -122,7 +122,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                   <div>
                     <div className="uppercase tracking-wider text-[#9ca3af] font-bold mb-0.5 border-b border-[#f3f4f6] pb-0.5">Prestador de Servicio</div>
                     <div className="font-bold text-sm text-[#111827]">{data.serviceProvider || 'Tu Nombre'}</div>
-                    <div className="text-[#4b5563]">NIT/CC: {data.serviceProviderNit || '---'}</div>
+                    {data.serviceProviderNit && <div className="text-[#4b5563]">NIT/CC: {data.serviceProviderNit}</div>}
                     <div className="text-[#4b5563]">{data.serviceProviderAddress || 'Dirección'}</div>
                     <div className="text-[#4b5563]">Tel: {data.serviceProviderPhone || '---'}</div>
                   </div>
@@ -226,7 +226,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                           <div className="h-16 w-48 border-b border-[#d1d5db] mb-2"></div>
                         )}
                         <p className="text-sm font-bold text-[#111827]">{data.serviceProvider || 'Nombre del Prestador'}</p>
-                        <p className="text-[10px] text-[#6b7280] uppercase tracking-widest">C.C. / NIT: {data.serviceProviderNit || '---'}</p>
+                        {data.serviceProviderNit && <p className="text-[10px] text-[#6b7280] uppercase tracking-widest">C.C. / NIT: {data.serviceProviderNit}</p>}
                       </div>
                     </>
                   )}
@@ -242,7 +242,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
 
           {/* Footer - appears on every page */}
           <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
-            <span style={{ fontSize: '10px', color: '#6b7280', letterSpacing: '0.05em' }}>medio de pago Bre-b 3016876201</span>
+            <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em' }}>medio de pago Bre-b 3016876201</span>
           </div>
         </div>
       );

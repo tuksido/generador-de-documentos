@@ -1280,7 +1280,7 @@ function SettingsPage() {
               </div>
               <div className="flex-grow min-w-0">
                 <h4 className="font-bold text-gray-900 truncate">{profile.provider_name}</h4>
-                <p className="text-xs text-gray-500 mt-1">NIT: {profile.provider_nit}</p>
+                {profile.provider_nit && <p className="text-xs text-gray-500 mt-1">NIT: {profile.provider_nit}</p>}
                 <div className="flex gap-3 mt-4">
                   <button
                     onClick={() => setEditingProfile(profile)}
