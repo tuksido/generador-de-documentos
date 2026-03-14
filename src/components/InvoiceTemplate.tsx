@@ -244,7 +244,7 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
           {/* Footer - appears on every page if text is provided */}
           {footerText && (
             <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
-              <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em' }}>{footerText}</span>
+              <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em', fontWeight: 'bold' }}>{footerText}</span>
             </div>
           )}
         </div>
