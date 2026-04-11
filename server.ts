@@ -33,8 +33,9 @@ const pool = new Pool({
 
 // Initialize database
 const initDb = async () => {
-  const client = await pool.connect();
+  let client: any;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -84,10 +85,10 @@ const initDb = async () => {
       );
     `);
     console.log('[DB] Tables initialized');
-  } catch (err) {
-    console.error('[DB] Init error:', err);
+  } catch (err: any) {
+    console.error('[DB] Init error (server will continue):', err.message);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
@@ -97,6 +98,8 @@ initDb().then(async () => {
     await pool.query("ALTER TABLE settings ADD COLUMN IF NOT EXISTS footer_text TEXT");
     console.log('[DB] Migration: footer_text column ensured');
   } catch (e) { /* column already exists */ }
+}).catch((err: any) => {
+  console.error('[DB] Startup init failed, server will continue without DB:', err.message);
 });
 
 const app = express();
