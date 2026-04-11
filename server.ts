@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import path from "path";
 import { Pool } from "pg";
@@ -11,15 +12,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Railway sets PORT but NOT NODE_ENV. Detect production by PORT presence.
-const isProd = !!process.env.PORT || process.env.NODE_ENV === "production";
+// Detect production via NODE_ENV (set in render.yaml)
+const isProd = process.env.NODE_ENV === "production";
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "docugen-secret-key-2024";
 const DATABASE_URL = process.env.DATABASE_URL;
 
-if (isProd && !DATABASE_URL) {
-  console.error("FATAL: DATABASE_URL is not set in production!");
-  process.exit(1);
+if (!DATABASE_URL) {
+  if (isProd) {
+    console.error("[FATAL] DATABASE_URL is not set! Configure it in Render Dashboard > Environment Variables.");
+  } else {
+    console.warn("[WARN] DATABASE_URL not set, using local PostgreSQL fallback.");
+  }
 }
 
 const pool = new Pool({
