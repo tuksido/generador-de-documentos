@@ -74,11 +74,11 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
           style={{
             ...getPaperSizeStyle(),
             padding: '0.6in 0.8in',
+            paddingBottom: footerText ? '0.85in' : '0.6in',
             boxSizing: 'border-box',
             position: 'relative',
             backgroundColor: '#ffffff',
             transform: preview ? undefined : 'none',
-            // In preview mode, we apply scaling in the parent or here
           }}
         >
           {/* Header Section - Always show basic header */}
@@ -157,13 +157,12 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
                   pageItems.map((item: any, index: number) => {
                     const colors = [
                       '#ffffff',
-                      '#f0f7ff', // blue-50/30 approx
-                      '#ecfdf5', // emerald-50/30 approx
-                      '#f5f3ff', // violet-50/30 approx
-                      '#fffbeb', // amber-50/30 approx
-                      '#fff1f2'  // rose-50/30 approx
+                      '#f0f7ff',
+                      '#ecfdf5',
+                      '#f5f3ff',
+                      '#fffbeb',
+                      '#fff1f2'
                     ];
-                    // Global index for color consistency
                     const globalIndex = isFirstPage ? index : itemsPerPageFirst + (pageIndex - 1) * itemsPerPageOthers + index;
                     const rowColor = colors[globalIndex % colors.length];
 
@@ -241,10 +240,20 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
             </>
           )}
 
-          {/* Footer - appears on every page if text is provided */}
+          {/* Footer - position:absolute so it always appears at the bottom regardless of content height or rendering context (screen / html2canvas / window.print) */}
           {footerText && (
-            <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
-              <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '0.05em', fontWeight: 'bold' }}>{footerText}</span>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '0.3in',
+                left: '0.8in',
+                right: '0.8in',
+                paddingTop: '8px',
+                borderTop: '1px solid #e5e7eb',
+                textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: '11px', color: '#6b7280', letterSpacing: '0.05em', fontWeight: 'bold' }}>{footerText}</span>
             </div>
           )}
         </div>
@@ -271,4 +280,3 @@ const InvoiceTemplate = React.forwardRef<HTMLDivElement, InvoiceTemplateProps>(
 InvoiceTemplate.displayName = 'InvoiceTemplate';
 
 export default InvoiceTemplate;
-

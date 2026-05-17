@@ -482,12 +482,71 @@ function Home() {
   );
 }
 
+// Reusable confirmation modal for deletions
+function ConfirmDeleteModal({
+  isOpen,
+  title,
+  description,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="p-6 border-b border-gray-100 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+            <Trash2 className="w-6 h-6 text-rose-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+          </div>
+        </div>
+        <div className="p-6 flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="flex-grow py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-grow py-3 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function History() {
   const { logout } = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'invoice' | 'payment_account'>('invoice');
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; label: string }>({
+    open: false, id: null, label: ''
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -541,6 +600,27 @@ function History() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Documentos");
     XLSX.writeFile(wb, `Reporte_Documentos_${activeTab}.xlsx`);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.id) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/invoices/${deleteModal.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setInvoices(prev => prev.filter(inv => inv.id !== deleteModal.id));
+        setDeleteModal({ open: false, id: null, label: '' });
+      } else {
+        alert('Error al eliminar el documento');
+      }
+    } catch {
+      alert('Error de conexión');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -643,11 +723,31 @@ function History() {
                 >
                   <ExternalLink className="w-3 h-3" /> Editar / Ver
                 </button>
+                <button
+                  onClick={() => setDeleteModal({
+                    open: true,
+                    id: inv.id,
+                    label: `No. ${inv.invoice_number} — ${inv.client_name || 'Sin Cliente'}`
+                  })}
+                  className="p-2 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-colors"
+                  title="Eliminar documento"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={deleteModal.open}
+        title="¿Eliminar documento?"
+        description={`Esta acción no se puede deshacer. Se eliminará permanentemente: ${deleteModal.label}`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteModal({ open: false, id: null, label: '' })}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
@@ -661,6 +761,10 @@ function ClientsList() {
   const [selectedClientDocs, setSelectedClientDocs] = useState<{ name: string, type: string } | null>(null);
   const [editingClient, setEditingClient] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; label: string }>({
+    open: false, id: null, label: ''
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
   const fetchClients = () => {
@@ -714,6 +818,28 @@ function ClientsList() {
       alert('Error de conexión');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!deleteModal.id) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/clients/${deleteModal.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (response.ok) {
+        setClients(prev => prev.filter(c => c.id !== deleteModal.id));
+        setDeleteModal({ open: false, id: null, label: '' });
+      } else {
+        alert('Error al eliminar el cliente');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -884,13 +1010,20 @@ function ClientsList() {
                         <div className="text-[9px] text-gray-400">Total: $ {stats.totalBilled.toLocaleString('es-CO')}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex justify-center">
+                        <div className="flex justify-center gap-1">
                           <button
                             onClick={() => setEditingClient(client)}
                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Editar Datos del Cliente"
                           >
                             <PenTool className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteModal({ open: true, id: client.id, label: client.name })}
+                            className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Eliminar Cliente"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -1048,6 +1181,15 @@ function ClientsList() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={deleteModal.open}
+        title="¿Eliminar cliente?"
+        description={`Se eliminará el cliente: ${deleteModal.label}. Sus facturas y cuentas de cobro no se eliminarán, pero ya no estarán asociadas a este cliente en el directorio.`}
+        onConfirm={handleDeleteClient}
+        onCancel={() => setDeleteModal({ open: false, id: null, label: '' })}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
@@ -1423,11 +1565,12 @@ function CreateInvoice() {
           setInvoiceData(prev => ({ ...prev, invoiceNumber: data.nextNumber }));
         });
     } else {
-      const { logo: initialLogo, signature: initialSignature, type: initialType, ...rest } = location.state.initialData;
+      const { logo: initialLogo, signature: initialSignature, type: initialType, footerText: initialFooterText, ...rest } = location.state.initialData;
       setInvoiceData(rest);
       setLogo(initialLogo);
       setSignature(initialSignature);
       if (initialType) setDocType(initialType);
+      if (initialFooterText !== undefined) setFooterText(initialFooterText);
     }
   }, [location.state, docType, profiles]);
 
@@ -1537,7 +1680,7 @@ function CreateInvoice() {
           date: invoiceData.date,
           acquiringCompany: invoiceData.acquiringCompany,
           grandTotal: invoiceData.grandTotal,
-          data: { ...invoiceData, logo, signature, type: docType }
+          data: { ...invoiceData, logo, signature, type: docType, footerText }
         }),
         credentials: 'include'
       });

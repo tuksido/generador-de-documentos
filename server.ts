@@ -313,6 +313,19 @@ app.get("/api/invoices", authenticateToken, asyncHandler(async (req: any, res: a
   res.json(result.rows.map((r: any) => ({ ...r, data: JSON.parse(r.data) })));
 }));
 
+app.delete("/api/invoices/:id", authenticateToken, asyncHandler(async (req: any, res: any) => {
+  const result = await pool.query("DELETE FROM invoices WHERE id = $1 AND user_id = $2 RETURNING id", [req.params.id, req.user.id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "Document not found" });
+  res.json({ status: "success" });
+}));
+
+app.delete("/api/clients/:id", authenticateToken, asyncHandler(async (req: any, res: any) => {
+  const result = await pool.query("DELETE FROM clients WHERE id = $1 AND user_id = $2 RETURNING id", [req.params.id, req.user.id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "Client not found" });
+  res.json({ status: "success" });
+}));
+
+
 // Dynamic Vite or Static Dist
 if (isProd) {
   const dist = path.resolve(process.cwd(), 'dist');
