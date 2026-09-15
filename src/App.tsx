@@ -59,6 +59,25 @@ function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
+// Global fetch wrapper to handle 429 Too Many Requests (e.g. from Render/Neon free tiers)
+const originalFetch = window.fetch;
+window.fetch = async function (...args) {
+  let retries = 3;
+  let delay = 1000;
+  while (retries > 0) {
+    const res = await originalFetch.apply(this, args);
+    if (res.status === 429) {
+      retries--;
+      if (retries === 0) return res;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff
+      continue;
+    }
+    return res;
+  }
+  return originalFetch.apply(this, args);
+};
+
 export default function App() {
   return (
     <AuthProvider>
