@@ -1,4 +1,5 @@
 // server.ts
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { Pool } from "pg";
@@ -10,21 +11,25 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
-var isProd = !!process.env.PORT || process.env.NODE_ENV === "production";
+var isProd = process.env.NODE_ENV === "production";
 var PORT = Number(process.env.PORT) || 3e3;
 var JWT_SECRET = process.env.JWT_SECRET || "docugen-secret-key-2024";
 var DATABASE_URL = process.env.DATABASE_URL;
-if (isProd && !DATABASE_URL) {
-  console.error("FATAL: DATABASE_URL is not set in production!");
-  process.exit(1);
+if (!DATABASE_URL) {
+  if (isProd) {
+    console.error("[FATAL] DATABASE_URL is not set! Configure it in Render Dashboard > Environment Variables.");
+  } else {
+    console.warn("[WARN] DATABASE_URL not set, using local PostgreSQL fallback.");
+  }
 }
 var pool = new Pool({
   connectionString: DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/invoices",
   ssl: isProd ? { rejectUnauthorized: false } : false
 });
 var initDb = async () => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -75,9 +80,9 @@ var initDb = async () => {
     `);
     console.log("[DB] Tables initialized");
   } catch (err) {
-    console.error("[DB] Init error:", err);
+    console.error("[DB] Init error (server will continue):", err.message);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 initDb().then(async () => {
@@ -86,6 +91,8 @@ initDb().then(async () => {
     console.log("[DB] Migration: footer_text column ensured");
   } catch (e) {
   }
+}).catch((err) => {
+  console.error("[DB] Startup init failed, server will continue without DB:", err.message);
 });
 var app = express();
 app.set("trust proxy", true);
@@ -123,19 +130,22 @@ var authenticateToken = asyncHandler(async (req, res, next) => {
 app.post("/api/auth/signup", asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  const cleanEmail = email.trim().toLowerCase();
   const hashedPassword = await bcrypt.hash(password, 10);
-  const result = await pool.query("INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id", [email, hashedPassword]);
-  const token = jwt.sign({ id: result.rows[0].id, email }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 60 * 60 * 1e3 });
-  res.json({ user: { id: result.rows[0].id, email } });
+  const result = await pool.query("INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id", [cleanEmail, hashedPassword]);
+  const token = jwt.sign({ id: result.rows[0].id, email: cleanEmail }, JWT_SECRET);
+  res.cookie("token", token, { httpOnly: true, sameSite: "lax", secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1e3 });
+  res.json({ user: { id: result.rows[0].id, email: cleanEmail } });
 }));
 app.post("/api/auth/login", asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  const cleanEmail = email.trim().toLowerCase();
+  const result = await pool.query("SELECT * FROM users WHERE LOWER(TRIM(email)) = $1", [cleanEmail]);
   const user = result.rows[0];
   if (!user || !await bcrypt.compare(password, user.password)) return res.status(401).json({ error: "Invalid credentials" });
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 60 * 60 * 1e3 });
+  res.cookie("token", token, { httpOnly: true, sameSite: "lax", secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1e3 });
   res.json({ user: { id: user.id, email: user.email } });
 }));
 app.post("/api/auth/logout", (req, res) => {
@@ -159,7 +169,9 @@ app.get("/api/auth/me", asyncHandler(async (req, res) => {
 }));
 app.post("/api/auth/forgot-password", asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  if (!email) return res.status(400).json({ error: "Email is required" });
+  const cleanEmail = email.trim().toLowerCase();
+  const result = await pool.query("SELECT * FROM users WHERE LOWER(TRIM(email)) = $1", [cleanEmail]);
   const user = result.rows[0];
   if (!user) return res.status(404).json({ error: "User not found" });
   const resetToken = Math.random().toString(36).substring(7);
@@ -168,7 +180,9 @@ app.post("/api/auth/forgot-password", asyncHandler(async (req, res) => {
 }));
 app.post("/api/auth/reset-password", asyncHandler(async (req, res) => {
   const { token, newPassword } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE reset_token = $1", [token]);
+  if (!token || !newPassword) return res.status(400).json({ error: "Token and new password required" });
+  const cleanToken = token.trim();
+  const result = await pool.query("SELECT * FROM users WHERE reset_token = $1", [cleanToken]);
   const user = result.rows[0];
   if (!user) return res.status(400).json({ error: "Invalid token" });
   const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -252,15 +266,28 @@ app.post("/api/invoices", authenticateToken, asyncHandler(async (req, res) => {
 }));
 app.get("/api/invoices/next-number/:type", authenticateToken, asyncHandler(async (req, res) => {
   const result = await pool.query(
-    `SELECT invoice_number FROM invoices WHERE type = $1 AND user_id = $2 ORDER BY CAST(REGEXP_REPLACE(invoice_number, '\\D', '', 'g') AS INTEGER) DESC LIMIT 1`,
+    `SELECT invoice_number FROM invoices 
+     WHERE type = $1 AND user_id = $2 
+     ORDER BY CAST(NULLIF(REGEXP_REPLACE(invoice_number, '\\D', '', 'g'), '') AS INTEGER) DESC NULLS LAST 
+     LIMIT 1`,
     [req.params.type, req.user.id]
   );
-  const lastNumber = result.rowCount ? parseInt(result.rows[0].invoice_number.replace(/\D/g, "")) : 0;
+  const lastNumber = result.rowCount && result.rows[0].invoice_number ? parseInt(result.rows[0].invoice_number.replace(/\D/g, "")) : 0;
   res.json({ nextNumber: String(isNaN(lastNumber) ? 1 : lastNumber + 1).padStart(4, "0") });
 }));
 app.get("/api/invoices", authenticateToken, asyncHandler(async (req, res) => {
   const result = await pool.query("SELECT * FROM invoices WHERE user_id = $1 ORDER BY created_at DESC", [req.user.id]);
   res.json(result.rows.map((r) => ({ ...r, data: JSON.parse(r.data) })));
+}));
+app.delete("/api/invoices/:id", authenticateToken, asyncHandler(async (req, res) => {
+  const result = await pool.query("DELETE FROM invoices WHERE id = $1 AND user_id = $2 RETURNING id", [req.params.id, req.user.id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "Document not found" });
+  res.json({ status: "success" });
+}));
+app.delete("/api/clients/:id", authenticateToken, asyncHandler(async (req, res) => {
+  const result = await pool.query("DELETE FROM clients WHERE id = $1 AND user_id = $2 RETURNING id", [req.params.id, req.user.id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "Client not found" });
+  res.json({ status: "success" });
 }));
 if (isProd) {
   const dist = path.resolve(process.cwd(), "dist");

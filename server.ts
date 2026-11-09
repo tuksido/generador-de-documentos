@@ -150,21 +150,24 @@ const authenticateToken = asyncHandler(async (req: any, res: any, next: any) => 
 app.post("/api/auth/signup", asyncHandler(async (req: any, res: any) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  const cleanEmail = email.trim().toLowerCase();
   const hashedPassword = await bcrypt.hash(password, 10);
-  const result = await pool.query("INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id", [email, hashedPassword]);
-  const token = jwt.sign({ id: result.rows[0].id, email }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
-  res.json({ user: { id: result.rows[0].id, email } });
+  const result = await pool.query("INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id", [cleanEmail, hashedPassword]);
+  const token = jwt.sign({ id: result.rows[0].id, email: cleanEmail }, JWT_SECRET);
+  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.json({ user: { id: result.rows[0].id, email: cleanEmail } });
 }));
 
 app.post("/api/auth/login", asyncHandler(async (req: any, res: any) => {
   const { email, password } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  const cleanEmail = email.trim().toLowerCase();
+  const result = await pool.query("SELECT * FROM users WHERE LOWER(TRIM(email)) = $1", [cleanEmail]);
   const user = result.rows[0];
   if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Invalid credentials" });
 
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1000 });
   res.json({ user: { id: user.id, email: user.email } });
 }));
 
@@ -192,7 +195,9 @@ app.get("/api/auth/me", asyncHandler(async (req: any, res: any) => {
 
 app.post("/api/auth/forgot-password", asyncHandler(async (req: any, res: any) => {
   const { email } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+  if (!email) return res.status(400).json({ error: "Email is required" });
+  const cleanEmail = email.trim().toLowerCase();
+  const result = await pool.query("SELECT * FROM users WHERE LOWER(TRIM(email)) = $1", [cleanEmail]);
   const user = result.rows[0];
   if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -203,7 +208,9 @@ app.post("/api/auth/forgot-password", asyncHandler(async (req: any, res: any) =>
 
 app.post("/api/auth/reset-password", asyncHandler(async (req: any, res: any) => {
   const { token, newPassword } = req.body;
-  const result = await pool.query("SELECT * FROM users WHERE reset_token = $1", [token]);
+  if (!token || !newPassword) return res.status(400).json({ error: "Token and new password required" });
+  const cleanToken = token.trim();
+  const result = await pool.query("SELECT * FROM users WHERE reset_token = $1", [cleanToken]);
   const user = result.rows[0];
   if (!user) return res.status(400).json({ error: "Invalid token" });
 
@@ -300,11 +307,14 @@ app.post("/api/invoices", authenticateToken, asyncHandler(async (req: any, res: 
 
 app.get("/api/invoices/next-number/:type", authenticateToken, asyncHandler(async (req: any, res: any) => {
   const result = await pool.query(
-    `SELECT invoice_number FROM invoices WHERE type = $1 AND user_id = $2 ORDER BY CAST(REGEXP_REPLACE(invoice_number, '\\D', '', 'g') AS INTEGER) DESC LIMIT 1`,
+    `SELECT invoice_number FROM invoices 
+     WHERE type = $1 AND user_id = $2 
+     ORDER BY CAST(NULLIF(REGEXP_REPLACE(invoice_number, '\\D', '', 'g'), '') AS INTEGER) DESC NULLS LAST 
+     LIMIT 1`,
     [req.params.type, req.user.id]
   );
 
-  const lastNumber = result.rowCount ? parseInt(result.rows[0].invoice_number.replace(/\D/g, '')) : 0;
+  const lastNumber = result.rowCount && result.rows[0].invoice_number ? parseInt(result.rows[0].invoice_number.replace(/\D/g, '')) : 0;
   res.json({ nextNumber: String(isNaN(lastNumber) ? 1 : lastNumber + 1).padStart(4, '0') });
 }));
 

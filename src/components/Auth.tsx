@@ -21,21 +21,26 @@ export const Auth: React.FC = () => {
     setMessage('');
     setLoading(true);
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       if (isResetPassword) {
-        await resetPassword(resetToken, newPassword);
+        await resetPassword(resetToken.trim(), newPassword);
         setMessage('Contraseña restablecida con éxito. Ahora puedes iniciar sesión.');
         setIsResetPassword(false);
         setIsLogin(true);
       } else if (isForgotPassword) {
-        const data = await forgotPassword(email);
-        setMessage(`Se ha enviado un enlace de recuperación a ${email}. (Token de prueba: ${data.debug_token})`);
+        const data = await forgotPassword(cleanEmail);
+        if (data.debug_token) {
+          setResetToken(data.debug_token);
+        }
+        setMessage(`Token de recuperación generado: ${data.debug_token || ''}. Ingresa tu nueva contraseña a continuación.`);
         setIsResetPassword(true);
         setIsForgotPassword(false);
       } else if (isLogin) {
-        await login(email, password);
+        await login(cleanEmail, password);
       } else {
-        await signup(email, password);
+        await signup(cleanEmail, password);
       }
     } catch (err: any) {
       setError(err.message);

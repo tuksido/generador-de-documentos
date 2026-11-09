@@ -15,23 +15,65 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
+const AUTH_STORAGE_KEY = 'docugen_user';
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Restore user from localStorage immediately to avoid flash of login screen
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  // If we have a cached user, don't show loading spinner — validate in background
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem(AUTH_STORAGE_KEY);
+    } catch {
+      return true;
+    }
+  });
+
+  const persistUser = (u: User | null) => {
+    setUser(u);
+    if (u) {
+      try { localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(u)); } catch {}
+    } else {
+      try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch {}
+    }
+  };
 
   useEffect(() => {
+    // Always validate the session with the server in the background
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => {
-        if (!res.ok) return { user: null };
+        if (res.status === 401 || res.status === 403) {
+          // Server explicitly says session is invalid — clear it
+          persistUser(null);
+          setLoading(false);
+          return null;
+        }
+        if (!res.ok) {
+          // Server error (500, etc.) or Render waking up — keep cached user
+          setLoading(false);
+          return null;
+        }
         return res.json();
       })
       .then(data => {
-        setUser(data.user);
+        if (data !== null && data !== undefined) {
+          persistUser(data.user);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        // Network error (e.g. server waking up) — keep cached user, don't log out
+        setLoading(false);
+      });
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -43,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
-    setUser(data.user);
+    persistUser(data.user);
   };
 
   const signup = async (email: string, password: string) => {
@@ -55,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Signup failed');
-    setUser(data.user);
+    persistUser(data.user);
   };
 
   const logout = async () => {
@@ -64,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error('Logout fetch failed', e);
     }
-    setUser(null);
+    persistUser(null);
   };
 
   const forgotPassword = async (email: string) => {
