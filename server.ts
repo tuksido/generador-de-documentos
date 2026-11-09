@@ -331,8 +331,31 @@ app.get("/api/invoices/next-number/:type", authenticateToken, asyncHandler(async
 }));
 
 app.get("/api/invoices", authenticateToken, asyncHandler(async (req: any, res: any) => {
-  const result = await pool.query("SELECT * FROM invoices WHERE user_id = $1 ORDER BY created_at DESC", [req.user.id]);
-  res.json(result.rows.map((r: any) => ({ ...r, data: JSON.parse(r.data) })));
+  const result = await pool.query(
+    "SELECT id, user_id, type, invoice_number, date, client_name, total, data, created_at FROM invoices WHERE user_id = $1 ORDER BY created_at DESC",
+    [req.user.id]
+  );
+  res.json(result.rows.map((r: any) => {
+    try {
+      const parsed = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {});
+      // Strip heavy base64 images from list view (reduces payload from 70MB+ to ~180KB)
+      const { logo, signature, ...lightData } = parsed;
+      return { ...r, data: lightData };
+    } catch {
+      return { ...r, data: {} };
+    }
+  }));
+}));
+
+app.get("/api/invoices/:id", authenticateToken, asyncHandler(async (req: any, res: any) => {
+  const result = await pool.query("SELECT * FROM invoices WHERE id = $1 AND user_id = $2", [req.params.id, req.user.id]);
+  if (result.rowCount === 0) return res.status(404).json({ error: "Document not found" });
+  const row = result.rows[0];
+  let parsedData = {};
+  try {
+    parsedData = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+  } catch {}
+  res.json({ ...row, data: parsedData });
 }));
 
 app.delete("/api/invoices/:id", authenticateToken, asyncHandler(async (req: any, res: any) => {

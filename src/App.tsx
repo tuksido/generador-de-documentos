@@ -29,7 +29,8 @@ import {
   BarChart2,
   PieChart as PieChartIcon,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RotateCcw
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -82,15 +83,22 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
   let retries = 3;
   let delay = 1000;
   while (retries > 0) {
-    const res = await originalFetch.call(this, input, init);
-    if (res.status === 429) {
+    try {
+      const res = await originalFetch.call(this, input, init);
+      if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
+        retries--;
+        if (retries === 0) return res;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+        continue;
+      }
+      return res;
+    } catch (fetchErr) {
       retries--;
-      if (retries === 0) return res;
+      if (retries === 0) throw fetchErr;
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2; // Exponential backoff
-      continue;
+      delay *= 2;
     }
-    return res;
   }
   return originalFetch.call(this, input, init);
 };
@@ -578,10 +586,10 @@ function History() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Restore cached invoices immediately so data is never blank on reload
+  // Restore cached invoices immediately from localStorage so data is NEVER blank on reload
   const [invoices, setInvoices] = useState<any[]>(() => {
     try {
-      const cached = sessionStorage.getItem('docugen_cached_invoices');
+      const cached = localStorage.getItem('docugen_cached_invoices') || sessionStorage.getItem('docugen_cached_invoices');
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
@@ -589,7 +597,8 @@ function History() {
   });
   const [loading, setLoading] = useState(() => {
     try {
-      return !sessionStorage.getItem('docugen_cached_invoices');
+      const cached = localStorage.getItem('docugen_cached_invoices') || sessionStorage.getItem('docugen_cached_invoices');
+      return !cached;
     } catch {
       return true;
     }
@@ -600,7 +609,7 @@ function History() {
       return location.state.activeTab;
     }
     try {
-      const saved = sessionStorage.getItem('docugen_history_tab');
+      const saved = localStorage.getItem('docugen_history_tab') || sessionStorage.getItem('docugen_history_tab');
       if (saved === 'invoice' || saved === 'payment_account') return saved;
     } catch {}
     return 'invoice';
@@ -609,21 +618,19 @@ function History() {
     open: false, id: null, label: ''
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleTabChange = (tab: 'invoice' | 'payment_account') => {
     setActiveTab(tab);
-    try { sessionStorage.setItem('docugen_history_tab', tab); } catch {}
+    try {
+      localStorage.setItem('docugen_history_tab', tab);
+      sessionStorage.setItem('docugen_history_tab', tab);
+    } catch {}
   };
 
-  useEffect(() => {
-    if (location.state?.searchTerm) {
-      setSearchTerm(location.state.searchTerm);
-    }
-    if (location.state?.activeTab === 'invoice' || location.state?.activeTab === 'payment_account') {
-      setActiveTab(location.state.activeTab);
-      try { sessionStorage.setItem('docugen_history_tab', location.state.activeTab); } catch {}
-    }
-
+  const loadInvoices = (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    setIsRefreshing(true);
     fetch('/api/invoices', { credentials: 'include' })
       .then(async res => {
         if (!res.ok) {
@@ -634,15 +641,35 @@ function History() {
       .then(data => {
         if (data && Array.isArray(data)) {
           setInvoices(data);
-          try { sessionStorage.setItem('docugen_cached_invoices', JSON.stringify(data)); } catch {}
+          try {
+            localStorage.setItem('docugen_cached_invoices', JSON.stringify(data));
+            sessionStorage.setItem('docugen_cached_invoices', JSON.stringify(data));
+          } catch {}
         }
         setLoading(false);
+        setIsRefreshing(false);
       })
       .catch(err => {
         console.error('Error fetching invoices:', err);
         // Do not wipe cached invoices on network error!
         setLoading(false);
+        setIsRefreshing(false);
       });
+  };
+
+  useEffect(() => {
+    if (location.state?.searchTerm) {
+      setSearchTerm(location.state.searchTerm);
+    }
+    if (location.state?.activeTab === 'invoice' || location.state?.activeTab === 'payment_account') {
+      setActiveTab(location.state.activeTab);
+      try {
+        localStorage.setItem('docugen_history_tab', location.state.activeTab);
+        sessionStorage.setItem('docugen_history_tab', location.state.activeTab);
+      } catch {}
+    }
+
+    loadInvoices();
   }, []);
 
   const filteredInvoices = invoices.filter(inv =>
@@ -750,14 +777,24 @@ function History() {
           </button>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full shadow-sm"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full shadow-sm"
+            />
+          </div>
+          <button
+            onClick={() => loadInvoices(false)}
+            disabled={isRefreshing}
+            className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
+            title="Recargar historial"
+          >
+            <RotateCcw className={cn("w-5 h-5", isRefreshing && "animate-spin text-blue-600")} />
+          </button>
         </div>
       </div>
 
@@ -1640,11 +1677,25 @@ function CreateInvoice() {
         });
     } else {
       const { logo: initialLogo, signature: initialSignature, type: initialType, footerText: initialFooterText, ...rest } = location.state.initialData;
+      const defaultProfile = Array.isArray(profiles) ? (profiles.find(p => p.is_default === 1) || profiles[0]) : null;
       setInvoiceData(rest);
-      setLogo(initialLogo);
-      setSignature(initialSignature);
+      setLogo(initialLogo || defaultProfile?.logo || '');
+      setSignature(initialSignature || defaultProfile?.signature || '');
       if (initialType) setDocType(initialType);
-      if (initialFooterText !== undefined) setFooterText(initialFooterText);
+      if (initialFooterText !== undefined) setFooterText(initialFooterText || defaultProfile?.footer_text || '');
+
+      if (rest.id) {
+        fetch(`/api/invoices/${rest.id}`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : null)
+          .then(fullDoc => {
+            if (fullDoc?.data) {
+              if (fullDoc.data.logo) setLogo(fullDoc.data.logo);
+              if (fullDoc.data.signature) setSignature(fullDoc.data.signature);
+              if (fullDoc.data.footerText) setFooterText(fullDoc.data.footerText);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [location.state, docType, profiles]);
 
