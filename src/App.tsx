@@ -60,12 +60,29 @@ function cn(...classes: (string | boolean | undefined)[]) {
 }
 
 // Global fetch wrapper to handle 429 Too Many Requests (e.g. from Render/Neon free tiers)
+// and automatically attach Authorization Bearer token from localStorage for all /api/ calls
 const originalFetch = window.fetch;
-window.fetch = async function (...args) {
+window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+  let url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+
+  // For /api/ endpoints, ensure credentials and attach Bearer token if available
+  if (typeof url === 'string' && (url.startsWith('/api/') || url.includes('/api/'))) {
+    const token = localStorage.getItem('docugen_token');
+    init = init || {};
+    init.credentials = init.credentials || 'include';
+    if (token) {
+      const headers = new Headers(init.headers || {});
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      init.headers = headers;
+    }
+  }
+
   let retries = 3;
   let delay = 1000;
   while (retries > 0) {
-    const res = await originalFetch.apply(this, args);
+    const res = await originalFetch.call(this, input, init);
     if (res.status === 429) {
       retries--;
       if (retries === 0) return res;
@@ -75,7 +92,7 @@ window.fetch = async function (...args) {
     }
     return res;
   }
-  return originalFetch.apply(this, args);
+  return originalFetch.call(this, input, init);
 };
 
 export default function App() {
@@ -558,38 +575,72 @@ function ConfirmDeleteModal({
 
 function History() {
   const { logout } = useAuth();
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Restore cached invoices immediately so data is never blank on reload
+  const [invoices, setInvoices] = useState<any[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('docugen_cached_invoices');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem('docugen_cached_invoices');
+    } catch {
+      return true;
+    }
+  });
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'invoice' | 'payment_account'>('invoice');
+  const [activeTab, setActiveTab] = useState<'invoice' | 'payment_account'>(() => {
+    if (location.state?.activeTab === 'invoice' || location.state?.activeTab === 'payment_account') {
+      return location.state.activeTab;
+    }
+    try {
+      const saved = sessionStorage.getItem('docugen_history_tab');
+      if (saved === 'invoice' || saved === 'payment_account') return saved;
+    } catch {}
+    return 'invoice';
+  });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null; label: string }>({
     open: false, id: null, label: ''
   });
   const [isDeleting, setIsDeleting] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+
+  const handleTabChange = (tab: 'invoice' | 'payment_account') => {
+    setActiveTab(tab);
+    try { sessionStorage.setItem('docugen_history_tab', tab); } catch {}
+  };
 
   useEffect(() => {
     if (location.state?.searchTerm) {
       setSearchTerm(location.state.searchTerm);
     }
+    if (location.state?.activeTab === 'invoice' || location.state?.activeTab === 'payment_account') {
+      setActiveTab(location.state.activeTab);
+      try { sessionStorage.setItem('docugen_history_tab', location.state.activeTab); } catch {}
+    }
+
     fetch('/api/invoices', { credentials: 'include' })
       .then(async res => {
         if (!res.ok) {
-          if (res.status === 401) {
-            // Handle unauthorized
-          }
           throw new Error('Error al cargar facturas');
         }
         return res.json();
       })
       .then(data => {
-        if (data) setInvoices(Array.isArray(data) ? data : []);
+        if (data && Array.isArray(data)) {
+          setInvoices(data);
+          try { sessionStorage.setItem('docugen_cached_invoices', JSON.stringify(data)); } catch {}
+        }
         setLoading(false);
       })
       .catch(err => {
         console.error('Error fetching invoices:', err);
-        setInvoices([]);
+        // Do not wipe cached invoices on network error!
         setLoading(false);
       });
   }, []);
@@ -630,7 +681,11 @@ function History() {
         credentials: 'include',
       });
       if (res.ok) {
-        setInvoices(prev => prev.filter(inv => inv.id !== deleteModal.id));
+        setInvoices(prev => {
+          const updated = prev.filter(inv => inv.id !== deleteModal.id);
+          try { sessionStorage.setItem('docugen_cached_invoices', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
         setDeleteModal({ open: false, id: null, label: '' });
       } else {
         alert('Error al eliminar el documento');
@@ -668,7 +723,7 @@ function History() {
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
             <button
-              onClick={() => setActiveTab('invoice')}
+              onClick={() => handleTabChange('invoice')}
               className={cn(
                 "px-6 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2",
                 activeTab === 'invoice' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
@@ -677,7 +732,7 @@ function History() {
               <FileText className="w-4 h-4" /> Facturas
             </button>
             <button
-              onClick={() => setActiveTab('payment_account')}
+              onClick={() => handleTabChange('payment_account')}
               className={cn(
                 "px-6 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-2",
                 activeTab === 'payment_account' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
@@ -1704,8 +1759,9 @@ function CreateInvoice() {
         credentials: 'include'
       });
       if (response.ok) {
+        try { sessionStorage.removeItem('docugen_cached_invoices'); } catch {}
         alert(invoiceData.id ? 'Documento actualizado exitosamente' : 'Documento guardado exitosamente');
-        navigate('/history');
+        navigate('/history', { state: { activeTab: docType } });
       } else {
         const errorData = await response.json();
         alert(`Error al guardar: ${errorData.error || 'Error desconocido'}`);

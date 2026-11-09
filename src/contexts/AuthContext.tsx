@@ -16,6 +16,7 @@ interface AuthContextType {
 }
 
 const AUTH_STORAGE_KEY = 'docugen_user';
+const TOKEN_STORAGE_KEY = 'docugen_token';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -48,11 +49,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    const hasToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const hasUser = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!hasToken && !hasUser) {
+      setLoading(false);
+      return;
+    }
+
     // Always validate the session with the server in the background
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => {
         if (res.status === 401 || res.status === 403) {
           // Server explicitly says session is invalid — clear it
+          try { localStorage.removeItem(TOKEN_STORAGE_KEY); } catch {}
           persistUser(null);
           setLoading(false);
           return null;
@@ -65,8 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return res.json();
       })
       .then(data => {
-        if (data !== null && data !== undefined) {
+        if (data && data.user) {
           persistUser(data.user);
+        } else if (data && data.user === null) {
+          // Explicit null from server with 200 OK
+          try { localStorage.removeItem(TOKEN_STORAGE_KEY); } catch {}
+          persistUser(null);
         }
         setLoading(false);
       })
@@ -85,6 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (data.token) {
+      try { localStorage.setItem(TOKEN_STORAGE_KEY, data.token); } catch {}
+    }
     persistUser(data.user);
   };
 
@@ -97,6 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Signup failed');
+    if (data.token) {
+      try { localStorage.setItem(TOKEN_STORAGE_KEY, data.token); } catch {}
+    }
     persistUser(data.user);
   };
 
@@ -106,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error('Logout fetch failed', e);
     }
+    try { localStorage.removeItem(TOKEN_STORAGE_KEY); } catch {}
     persistUser(null);
   };
 

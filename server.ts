@@ -124,9 +124,19 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Auth Token Helper
+const getToken = (req: any) => {
+  if (req.cookies?.token) return req.cookies.token;
+  const authHeader = req.headers?.authorization;
+  if (authHeader && typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  return null;
+};
+
 // Auth Middleware
 const authenticateToken = asyncHandler(async (req: any, res: any, next: any) => {
-  const token = req.cookies?.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ error: "Unauthorized", details: "No session found" });
 
   try {
@@ -135,7 +145,7 @@ const authenticateToken = asyncHandler(async (req: any, res: any, next: any) => 
     // Verify user still exists
     const userRes = await pool.query("SELECT id FROM users WHERE id = $1", [payload.id]);
     if (userRes.rowCount === 0) {
-      res.clearCookie("token");
+      res.clearCookie("token", { path: '/' });
       return res.status(401).json({ error: "Unauthorized", details: "Session invalid (User not found)" });
     }
 
@@ -154,8 +164,9 @@ app.post("/api/auth/signup", asyncHandler(async (req: any, res: any) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   const result = await pool.query("INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id", [cleanEmail, hashedPassword]);
   const token = jwt.sign({ id: result.rows[0].id, email: cleanEmail }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1000 });
-  res.json({ user: { id: result.rows[0].id, email: cleanEmail } });
+  const isSecure = isProd && (req.secure || req.headers['x-forwarded-proto'] === 'https');
+  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isSecure, path: '/', maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.json({ user: { id: result.rows[0].id, email: cleanEmail }, token });
 }));
 
 app.post("/api/auth/login", asyncHandler(async (req: any, res: any) => {
@@ -167,24 +178,25 @@ app.post("/api/auth/login", asyncHandler(async (req: any, res: any) => {
   if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: "Invalid credentials" });
 
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 30 * 24 * 60 * 60 * 1000 });
-  res.json({ user: { id: user.id, email: user.email } });
+  const isSecure = isProd && (req.secure || req.headers['x-forwarded-proto'] === 'https');
+  res.cookie("token", token, { httpOnly: true, sameSite: 'lax', secure: isSecure, path: '/', maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.json({ user: { id: user.id, email: user.email }, token });
 }));
 
 app.post("/api/auth/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", { path: '/' });
   res.json({ status: "success" });
 });
 
 app.get("/api/auth/me", asyncHandler(async (req: any, res: any) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.json({ user: null });
 
   try {
     const payload: any = jwt.verify(token, JWT_SECRET);
     const result = await pool.query("SELECT id FROM users WHERE id = $1", [payload.id]);
     if (result.rowCount === 0) {
-      res.clearCookie("token");
+      res.clearCookie("token", { path: '/' });
       return res.json({ user: null });
     }
     res.json({ user: payload });
